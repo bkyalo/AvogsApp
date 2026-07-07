@@ -61,7 +61,7 @@ class ApiClient {
     await _request(() => _dio.post<void>('$_baseUrl$path'));
   }
 
-  /// Multipart upload, e.g. `POST /uploads` with a `file` field. Takes raw
+  /// Multipart upload, e.g. `POST /media` with a `file` field. Takes raw
   /// bytes rather than a file path so it works on Flutter Web too — dart:io
   /// (and therefore MultipartFile.fromFile) isn't available there, but
   /// MultipartFile.fromBytes works on every platform this app targets.

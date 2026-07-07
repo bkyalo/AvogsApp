@@ -233,7 +233,9 @@ class CheckoutPrefill {
   final List<CheckinStockCount> stockCounts;
 }
 
-/// POST /uploads response: { "upload_id": "upl_...", "url": "http://..." }
+/// POST /media response: { "upload_id": "upl_...", "url": "http://..." }
+/// (/media is a server-side alias for the upload handler — the original
+/// /uploads path clashed with an nginx directory of the same name.)
 class UploadResult {
   const UploadResult({required this.uploadId, required this.url});
 
@@ -327,7 +329,7 @@ class ShiftsRepository {
 
   Future<UploadResult> uploadPhoto(Uint8List bytes, {required String filename}) async {
     final data = await _api.uploadBytes(
-      '/uploads',
+      '/media',
       bytes: bytes,
       filename: filename,
     );

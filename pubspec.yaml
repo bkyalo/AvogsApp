@@ -1,7 +1,7 @@
 name: avogs
 description: AVO'Gs retail POS and operations app for FrontAccounting.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2002
 
 environment:
   sdk: ^3.12.2
