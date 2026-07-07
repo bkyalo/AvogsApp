@@ -458,9 +458,12 @@ class _LineCard extends StatelessWidget {
                 if (onUnitPriceChanged != null)
                   Expanded(
                     flex: 5,
-                    child: _PriceField(
-                      price: line.unitPrice,
-                      showRequiredError: requirePrice && line.unitPrice <= 0,
+                    child: MoneyField(
+                      value: line.unitPrice,
+                      label: 'Price',
+                      errorText: requirePrice && line.unitPrice <= 0
+                          ? 'Enter price'
+                          : null,
                       onChanged: onUnitPriceChanged!,
                     ),
                   ),
@@ -707,29 +710,47 @@ class _StepButton extends StatelessWidget {
   }
 }
 
-/// Price input that keeps its own text state while focused, so typing is
+/// Money input that keeps its own text state while focused, so typing is
 /// never interrupted by rebuilds. Selects all on tap; reformats to two
-/// decimals (or reverts, if invalid) when focus leaves.
-class _PriceField extends StatefulWidget {
-  const _PriceField({
-    required this.price,
+/// decimals (or reverts, if invalid) when focus leaves. Syncs its text when
+/// the value is changed from outside (and the field isn't focused).
+///
+/// Styled as a tinted pill because the app theme fills inputs with the same
+/// color as cards, which would make a default field invisible inside a card.
+class MoneyField extends StatefulWidget {
+  const MoneyField({
+    super.key,
+    required this.value,
     required this.onChanged,
-    this.showRequiredError = false,
+    this.label,
+    this.errorText,
+    this.emptyWhenZero = false,
+    this.textStyle,
   });
 
-  final double price;
+  final double value;
   final ValueChanged<double> onChanged;
-  final bool showRequiredError;
+  final String? label;
+  final String? errorText;
+
+  /// Show an empty field instead of "0.00" when the value is zero
+  /// (for amounts the user enters from scratch).
+  final bool emptyWhenZero;
+
+  final TextStyle? textStyle;
 
   @override
-  State<_PriceField> createState() => _PriceFieldState();
+  State<MoneyField> createState() => _MoneyFieldState();
 }
 
-class _PriceFieldState extends State<_PriceField> {
+class _MoneyFieldState extends State<MoneyField> {
   late final TextEditingController _controller =
-      TextEditingController(text: widget.price.toStringAsFixed(2));
+      TextEditingController(text: _formatValue(widget.value));
   final FocusNode _focusNode = FocusNode();
   var _selectAllOnTap = false;
+
+  String _formatValue(double v) =>
+      (widget.emptyWhenZero && v == 0) ? '' : v.toStringAsFixed(2);
 
   @override
   void initState() {
@@ -752,10 +773,10 @@ class _PriceFieldState extends State<_PriceField> {
   }
 
   @override
-  void didUpdateWidget(covariant _PriceField oldWidget) {
+  void didUpdateWidget(covariant MoneyField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_focusNode.hasFocus && oldWidget.price != widget.price) {
-      _controller.text = widget.price.toStringAsFixed(2);
+    if (!_focusNode.hasFocus && oldWidget.value != widget.value) {
+      _controller.text = _formatValue(widget.value);
     }
   }
 
@@ -772,16 +793,31 @@ class _PriceFieldState extends State<_PriceField> {
       _selectAll();
     } else {
       _selectAllOnTap = false;
-      final parsed = double.tryParse(_controller.text);
-      _controller.text = (parsed ?? widget.price).toStringAsFixed(2);
-      if (parsed != null && parsed != widget.price) {
-        widget.onChanged(parsed);
+      final text = _controller.text.trim();
+      final parsed = double.tryParse(text);
+      if (parsed == null) {
+        if (widget.emptyWhenZero && text.isEmpty) {
+          if (widget.value != 0) widget.onChanged(0);
+        } else {
+          _controller.text = _formatValue(widget.value);
+        }
+      } else {
+        _controller.text = _formatValue(parsed);
+        if (parsed != widget.value) widget.onChanged(parsed);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final pillBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(
+        color: scheme.onSurface.withValues(alpha: 0.15),
+      ),
+    );
+
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
@@ -789,17 +825,38 @@ class _PriceFieldState extends State<_PriceField> {
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
       ],
+      style: widget.textStyle,
       decoration: InputDecoration(
-        labelText: 'Price',
+        labelText: widget.label,
         prefixText: 'KES ',
         isDense: true,
-        errorText: widget.showRequiredError ? 'Enter price' : null,
+        filled: true,
+        fillColor: scheme.onSurface.withValues(alpha: 0.05),
+        border: pillBorder,
+        enabledBorder: pillBorder,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: scheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: scheme.error, width: 1.5),
+        ),
+        errorText: widget.errorText,
         errorStyle: const TextStyle(fontSize: 10, height: 0.9),
       ),
       onTap: _handleTap,
       onChanged: (v) {
         final parsed = double.tryParse(v);
-        if (parsed != null) widget.onChanged(parsed);
+        if (parsed != null) {
+          widget.onChanged(parsed);
+        } else if (widget.emptyWhenZero && v.trim().isEmpty) {
+          widget.onChanged(0);
+        }
       },
     );
   }

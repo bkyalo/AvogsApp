@@ -103,7 +103,9 @@ class PaymentController extends StateNotifier<PaymentFormState> {
   void setAllocationAmount(int transNo, double amount) {
     final updated = Map<int, double>.from(state.allocations);
     updated[transNo] = amount;
-    state = state.copyWith(allocations: updated);
+    // Keep the payment amount in sync with allocations, same as toggling.
+    final total = updated.values.fold(0.0, (a, b) => a + b);
+    state = state.copyWith(allocations: updated, amount: total);
   }
 
   Future<TransactionSuccessDetails?> submit() async {
@@ -111,6 +113,22 @@ class PaymentController extends StateNotifier<PaymentFormState> {
     final bankAccount = state.selectedBankAccountId;
     if (prefill == null || bankAccount == null || state.amount <= 0) {
       state = state.copyWith(errorMessage: 'Enter a valid payment amount');
+      return null;
+    }
+    const epsilon = 0.005;
+    final overBalance = prefill.openDocuments.any(
+      (d) => (state.allocations[d.transNo] ?? 0) > d.balance + epsilon,
+    );
+    if (overBalance) {
+      state = state.copyWith(
+        errorMessage: 'An allocation exceeds the invoice balance',
+      );
+      return null;
+    }
+    if (state.allocatedTotal > state.amount + epsilon) {
+      state = state.copyWith(
+        errorMessage: 'Allocations exceed the payment amount',
+      );
       return null;
     }
 
