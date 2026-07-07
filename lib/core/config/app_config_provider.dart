@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:avogs/core/config/app_build_config.dart';
 import 'package:avogs/core/config/app_config.dart';
 import 'package:avogs/core/config/app_environment.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +19,7 @@ final appConfigProvider =
 
 class AppConfigController extends StateNotifier<AppConfig> {
   AppConfigController(this._storage)
-      : super(AppConfig(environment: AppBuildConfig.defaultEnvironment)) {
+      : super(AppConfig(environment: kDefaultEnvironment)) {
     _load();
   }
 
@@ -41,7 +40,7 @@ class AppConfigController extends StateNotifier<AppConfig> {
     final store = await _storage.read(key: _storeKey);
     final environment = AppEnvironment.values.firstWhere(
       (e) => e.name == envName,
-      orElse: () => AppBuildConfig.defaultEnvironment,
+      orElse: () => kDefaultEnvironment,
     );
     state = AppConfig(
       environment: environment,

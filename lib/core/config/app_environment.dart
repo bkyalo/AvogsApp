@@ -4,6 +4,9 @@ enum AppEnvironment {
   production,
 }
 
+/// Change this one line before building, then run `flutter build apk --release`.
+const AppEnvironment kDefaultEnvironment = AppEnvironment.development;
+
 extension AppEnvironmentX on AppEnvironment {
   String get label => switch (this) {
         AppEnvironment.local => 'Local',
