@@ -8,7 +8,11 @@ class BiometricService {
 
   Future<bool> canCheckBiometrics() async {
     try {
-      return await _auth.canCheckBiometrics && await _auth.isDeviceSupported();
+      if (!await _auth.isDeviceSupported()) return false;
+      final available = await _auth.getAvailableBiometrics();
+      if (available.isNotEmpty) return true;
+      // Hardware may report enrolled biometrics late on some Samsung builds.
+      return await _auth.canCheckBiometrics;
     } catch (_) {
       return false;
     }

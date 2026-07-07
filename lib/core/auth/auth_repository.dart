@@ -263,12 +263,17 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> completePinSetup(String pin, {bool enableBiometric = false}) async {
     await _repository.setPin(pin);
+    var biometricEnabled = false;
     if (enableBiometric) {
-      await _repository.setBiometricEnabled(true);
+      final confirmed = await _repository.confirmBiometric();
+      if (confirmed) {
+        await _repository.setBiometricEnabled(true);
+        biometricEnabled = true;
+      }
     }
     state = state.copyWith(
       status: AuthStatus.authenticated,
-      biometricEnabled: enableBiometric,
+      biometricEnabled: biometricEnabled,
       clearError: true,
     );
   }

@@ -138,8 +138,21 @@ class SettingsScreen extends ConsumerWidget {
         Text('Security', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         canBiometric.when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
+          loading: () => const ListTile(
+            leading: Icon(Icons.fingerprint),
+            title: Text('Biometric unlock'),
+            subtitle: Text('Checking device…'),
+            trailing: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          error: (e, _) => ListTile(
+            leading: const Icon(Icons.fingerprint),
+            title: const Text('Biometric unlock'),
+            subtitle: Text('Could not check biometrics: $e'),
+          ),
           data: (available) => available
               ? SwitchListTile(
                   contentPadding: EdgeInsets.zero,
