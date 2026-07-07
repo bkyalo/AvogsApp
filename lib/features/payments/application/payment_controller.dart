@@ -1,6 +1,7 @@
 import 'package:avogs/core/api/api_exception.dart';
 import 'package:avogs/core/sync/sync_service.dart';
 import 'package:avogs/core/transactions/transaction_submitter.dart';
+import 'package:avogs/features/history/application/history_provider.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -176,6 +177,9 @@ class PaymentController extends StateNotifier<PaymentFormState> {
             : const [],
         queuedOffline: result.queuedOffline,
       );
+
+      // Refresh history so the payment shows up immediately.
+      _ref.invalidate(historyEntriesProvider);
 
       await load(customerId: prefill.defaults.customerId);
       return details;

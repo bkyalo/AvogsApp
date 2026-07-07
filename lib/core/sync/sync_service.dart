@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:avogs/core/api/api_client.dart';
@@ -13,6 +14,8 @@ enum SyncItemType {
   salesPayment,
   supplierInvoice,
   inventoryAdjustment,
+  shiftCheckin,
+  shiftCheckout,
 }
 
 extension SyncItemTypeX on SyncItemType {
@@ -21,6 +24,10 @@ extension SyncItemTypeX on SyncItemType {
         SyncItemType.salesPayment => '/sales/payments',
         SyncItemType.supplierInvoice => '/purchasing/invoices',
         SyncItemType.inventoryAdjustment => '/inventory/adjustments',
+        SyncItemType.shiftCheckin => '/shifts/checkin',
+        // Unconfirmed — mirrors /shifts/checkin symmetrically. Update if the
+        // real backend contract differs.
+        SyncItemType.shiftCheckout => '/shifts/checkout',
       };
 
   String get value => name;
@@ -86,10 +93,18 @@ class SyncService extends StateNotifier<SyncState> {
   final ApiClient _api;
   final Connectivity _connectivity;
   final _uuid = const Uuid();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _init() async {
     await refreshPendingCount();
-    _connectivity.onConnectivityChanged.listen((results) {
+    _connectivitySub = _connectivity.onConnectivityChanged.listen((results) {
+      if (!mounted) return;
       final online = results.any((r) => r != ConnectivityResult.none);
       state = state.copyWith(isOnline: online);
       if (online) {
@@ -97,6 +112,7 @@ class SyncService extends StateNotifier<SyncState> {
       }
     });
     final current = await _connectivity.checkConnectivity();
+    if (!mounted) return;
     state = state.copyWith(
       isOnline: current.any((r) => r != ConnectivityResult.none),
     );
@@ -104,6 +120,7 @@ class SyncService extends StateNotifier<SyncState> {
 
   Future<void> refreshPendingCount() async {
     final count = await _db.pendingSyncCount();
+    if (!mounted) return;
     state = state.copyWith(pendingCount: count);
   }
 
@@ -184,6 +201,7 @@ class SyncService extends StateNotifier<SyncState> {
       }
     } finally {
       await refreshPendingCount();
+      if (!mounted) return;
       state = state.copyWith(isSyncing: false);
     }
   }

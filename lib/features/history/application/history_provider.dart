@@ -37,6 +37,8 @@ class HistoryEntry {
         SyncItemType.salesPayment => 'Payment',
         SyncItemType.supplierInvoice => 'Purchase',
         SyncItemType.inventoryAdjustment => 'Adjustment',
+        SyncItemType.shiftCheckin => 'Shift check-in',
+        SyncItemType.shiftCheckout => 'Shift check-out',
       };
 }
 
@@ -110,6 +112,10 @@ String _subtitleForPayload(SyncItemType type, Map<String, dynamic> payload) {
       '${payload['supplier_id'] ?? '?'} · ${payload['location'] ?? ''}',
     SyncItemType.inventoryAdjustment =>
       payload['location'] as String? ?? 'Adjustment',
+    SyncItemType.shiftCheckin =>
+      '${payload['store'] ?? '?'} · ${payload['shift'] ?? ''} shift',
+    SyncItemType.shiftCheckout =>
+      '${payload['store'] ?? '?'} · ${payload['shift'] ?? ''} shift closed',
   };
 }
 

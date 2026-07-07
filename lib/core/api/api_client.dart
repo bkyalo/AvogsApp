@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:avogs/core/api/api_error_mapper.dart';
 import 'package:avogs/core/api/api_exception.dart';
 import 'package:avogs/core/api/dio_provider.dart';
@@ -57,6 +59,33 @@ class ApiClient {
 
   Future<void> postEmpty(String path) async {
     await _request(() => _dio.post<void>('$_baseUrl$path'));
+  }
+
+  /// Multipart upload, e.g. `POST /uploads` with a `file` field. Takes raw
+  /// bytes rather than a file path so it works on Flutter Web too — dart:io
+  /// (and therefore MultipartFile.fromFile) isn't available there, but
+  /// MultipartFile.fromBytes works on every platform this app targets.
+  /// Dio sets the multipart boundary content-type header itself from the
+  /// FormData — don't pass a Content-Type override here.
+  Future<Map<String, dynamic>> uploadBytes(
+    String path, {
+    required Uint8List bytes,
+    required String filename,
+    String field = 'file',
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
+    final formData = FormData.fromMap({
+      field: MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    return _request(() => _dio.post<Map<String, dynamic>>(
+          '$_baseUrl$path',
+          data: formData,
+          onSendProgress: onSendProgress,
+          options: Options(
+            sendTimeout: const Duration(minutes: 2),
+            receiveTimeout: const Duration(minutes: 2),
+          ),
+        ));
   }
 
   Future<T> _request<T>(Future<Response<T>> Function() call) async {

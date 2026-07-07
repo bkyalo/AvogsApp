@@ -21,6 +21,10 @@ final dioProvider = Provider<Dio>((ref) {
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        // Multipart uploads need Dio to set the boundary — not application/json.
+        if (options.data is FormData) {
+          options.headers.remove(Headers.contentTypeHeader);
+        }
         handler.next(options);
       },
       onError: (error, handler) async {

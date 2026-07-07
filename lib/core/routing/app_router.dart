@@ -19,6 +19,9 @@ import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:avogs/features/sales/presentation/pos_screen.dart';
 import 'package:avogs/features/services/presentation/services_screen.dart';
 import 'package:avogs/features/settings/presentation/settings_screen.dart';
+import 'package:avogs/features/shifts/application/shift_gate_provider.dart';
+import 'package:avogs/features/shifts/presentation/checkin_screen.dart';
+import 'package:avogs/features/shifts/presentation/checkout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +29,33 @@ import 'package:go_router/go_router.dart';
 /// Stable listenable for GoRouter — avoids recreating the router on auth changes.
 final routerRefreshListenableProvider = Provider<Listenable>((ref) {
   final notifier = _RouterRefreshNotifier();
-  ref.listen(authControllerProvider, (_, __) => notifier.notify());
+
+  // If this is built while already authenticated — e.g. a persisted token
+  // restored on cold start, skipping the login screen entirely — there's no
+  // "transition into authenticated" event for the listener below to catch.
+  // Check once now so the gate doesn't get stuck on "checking" forever.
+  if (ref.read(authControllerProvider).status == AuthStatus.authenticated) {
+    ref.read(shiftGateProvider.notifier).check();
+  }
+
+  ref.listen(authControllerProvider, (previous, next) {
+    // Fresh login/PIN unlock into an authenticated session — find out
+    // whether a shift is already open before letting staff any further in.
+    if (next.status == AuthStatus.authenticated &&
+        previous?.status != AuthStatus.authenticated) {
+      ref.read(shiftGateProvider.notifier).check();
+    }
+    // True logout (not just a PIN lock) — forget what we knew so the next
+    // login checks fresh instead of reusing a stale answer.
+    if (next.status == AuthStatus.unauthenticated &&
+        previous?.status != AuthStatus.unauthenticated) {
+      ref.read(shiftGateProvider.notifier).reset();
+    }
+    notifier.notify();
+  });
+  // Re-evaluate routing once the shift check resolves (it starts as
+  // "checking" and flips to open/closed/unreachable asynchronously).
+  ref.listen(shiftGateProvider, (_, __) => notifier.notify());
   ref.onDispose(notifier.dispose);
   return notifier;
 });
@@ -55,7 +84,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (status == AuthStatus.locked) {
         return path == AppRoutes.pinUnlock ? null : AppRoutes.pinUnlock;
       }
-      if (status == AuthStatus.authenticated && isAuthRoute) {
+
+      // Authenticated: check in before anything else, like an onboarding
+      // step. "checking" is treated the same as "closed" so staff land on
+      // the check-in screen's own loading spinner instead of flashing the
+      // dashboard first. "unreachable" (offline / API error) fails open —
+      // we never trap staff behind a network problem.
+      final gate = ref.read(shiftGateProvider).status;
+      final needsCheckin = gate == ShiftGateStatus.checking ||
+          gate == ShiftGateStatus.closed;
+      final onCheckinRoute = path == AppRoutes.shifts;
+
+      if (needsCheckin && !onCheckinRoute) {
+        return AppRoutes.shifts;
+      }
+      if (isAuthRoute) {
         return AppRoutes.dashboard;
       }
       return null;
@@ -72,6 +115,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.pinUnlock,
         builder: (_, __) => const PinUnlockScreen(),
+      ),
+      // Outside the shell (no bottom nav) — this is a focused onboarding
+      // step, not a regular tab. Reached either by the redirect above or
+      // manually from Services.
+      GoRoute(
+        path: AppRoutes.shifts,
+        builder: (_, __) => const CheckinScreen(),
+      ),
+      // Also outside the shell — reached from Services or a reminder-tap,
+      // never forced. The redirect above still applies (needs an open
+      // shift to get here at all, same as everywhere else in the app).
+      GoRoute(
+        path: AppRoutes.shiftClose,
+        builder: (_, __) => const CheckoutScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) {
@@ -126,8 +183,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 void _refreshShellTab(WidgetRef ref, int index) {
   switch (index) {
     case 0:
-      ref.invalidate(todaySalesSummaryProvider);
-      ref.invalidate(salesTrendProvider);
+      ref.invalidate(dashboardProvider);
       break;
     case 1:
       ref.invalidate(inventoryBalancesProvider);

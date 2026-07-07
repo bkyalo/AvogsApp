@@ -12,6 +12,7 @@ abstract final class AppRoutes {
   static const history = '/history';
   static const settings = '/settings';
   static const shifts = '/shifts';
+  static const shiftClose = '/shifts/close';
   static const checklists = '/checklists';
   static const reports = '/reports';
 }

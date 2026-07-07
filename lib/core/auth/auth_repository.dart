@@ -44,6 +44,11 @@ final authControllerProvider =
   return AuthController(ref.watch(authRepositoryProvider));
 });
 
+/// Whether this device has a usable biometric sensor (enrolled + supported).
+final canUseBiometricProvider = FutureProvider<bool>((ref) {
+  return ref.watch(authRepositoryProvider).canUseBiometric();
+});
+
 class AuthRepository {
   AuthRepository({
     required FlutterSecureStorage storage,
@@ -171,6 +176,12 @@ class AuthRepository {
 
   Future<bool> canUseBiometric() => _biometricService.canCheckBiometrics();
 
+  /// Prompts the sensor once — used to confirm biometrics actually work
+  /// before trusting them as an unlock method.
+  Future<bool> confirmBiometric() => _biometricService.authenticate(
+        reason: "Confirm biometric unlock for AVO'Gs",
+      );
+
   Future<void> setBiometricEnabled(bool enabled) async {
     await _storage.write(
       key: _biometricKey,
@@ -278,6 +289,27 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.authenticated, clearError: true);
     }
     return ok;
+  }
+
+  /// Turns biometric unlock on/off from Settings. Enabling requires one
+  /// successful biometric confirmation so a broken/unenrolled sensor can't
+  /// be trusted as the unlock method. Returns false if confirmation failed.
+  Future<bool> setBiometricEnabled(bool enabled) async {
+    if (enabled) {
+      final ok = await _repository.confirmBiometric();
+      if (!ok) return false;
+    }
+    await _repository.setBiometricEnabled(enabled);
+    state = state.copyWith(biometricEnabled: enabled);
+    return true;
+  }
+
+  /// Locks the app behind PIN entry without discarding the session (token,
+  /// user, allowed stores) — used after closing a shift, so whoever closed
+  /// up just re-enters the PIN next time instead of being logged out
+  /// entirely like a real logout would.
+  void lock() {
+    state = state.copyWith(status: AuthStatus.locked, clearError: true);
   }
 
   Future<void> logout() async {

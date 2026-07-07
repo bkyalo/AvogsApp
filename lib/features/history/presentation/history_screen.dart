@@ -6,7 +6,6 @@ import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/features/history/application/history_provider.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:avogs/features/sales/presentation/sales_receipt_screen.dart';
-import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
 import 'package:avogs/shared/widgets/sync_status_banner.dart';
 import 'package:flutter/material.dart';
@@ -248,5 +247,7 @@ class _HistoryTile extends StatelessWidget {
         SyncItemType.salesPayment => Icons.payments_outlined,
         SyncItemType.supplierInvoice => Icons.local_shipping_outlined,
         SyncItemType.inventoryAdjustment => Icons.inventory_2_outlined,
+        SyncItemType.shiftCheckin => Icons.schedule,
+        SyncItemType.shiftCheckout => Icons.schedule_outlined,
       };
 }

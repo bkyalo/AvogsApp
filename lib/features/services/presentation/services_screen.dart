@@ -18,6 +18,8 @@ class ServicesScreen extends StatelessWidget {
     featured: true,
   );
 
+  // Open Shop / Close Shop live on the Account screen now, as small cards
+  // above Environment — not here.
   static const _services = [
     _ServiceAction(
       icon: Icons.payments_outlined,

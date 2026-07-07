@@ -2,6 +2,8 @@ import 'package:avogs/core/api/api_exception.dart';
 import 'package:avogs/core/config/app_config_provider.dart';
 import 'package:avogs/core/sync/sync_service.dart';
 import 'package:avogs/core/transactions/transaction_submitter.dart';
+import 'package:avogs/features/history/application/history_provider.dart';
+import 'package:avogs/features/inventory/inventory_repository.dart';
 import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
@@ -159,6 +161,10 @@ class AdjustmentController extends StateNotifier<AdjustmentFormState> {
         ],
         queuedOffline: result.queuedOffline,
       );
+
+      // Refresh stock balances and history to reflect the adjustment.
+      _ref.invalidate(inventoryBalancesProvider);
+      _ref.invalidate(historyEntriesProvider);
 
       await load(location: prefill.defaults.location);
       state = state.copyWith(memo: '', submitting: false);

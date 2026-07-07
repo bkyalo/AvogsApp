@@ -1,3 +1,4 @@
+import 'package:avogs/core/config/app_build_config.dart';
 import 'package:avogs/core/config/app_config.dart';
 import 'package:avogs/core/config/app_environment.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,5 +17,9 @@ void main() {
   test('production environment base url', () {
     const config = AppConfig(environment: AppEnvironment.production);
     expect(config.baseUrl, 'https://avogs.werevu.co.ke/api');
+  });
+
+  test('default build environment falls back to local', () {
+    expect(AppBuildConfig.defaultEnvironment, AppEnvironment.local);
   });
 }
