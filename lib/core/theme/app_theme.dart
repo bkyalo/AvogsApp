@@ -3,28 +3,57 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppTheme {
+  static final ThemeData lightTheme = light();
+  static final ThemeData darkTheme = dark();
+
+  static TextStyle _sans({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? letterSpacing,
+  }) {
+    return GoogleFonts.dmSans(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+    );
+  }
+
+  static final TextStyle _filledButtonText =
+      _sans(fontWeight: FontWeight.w700, fontSize: 15);
+
   static ThemeData light() {
+    const onSurface = AppColors.primaryDark;
+    const onSurfaceVariant = Color(0xFF5E5E54);
+
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primaryGreen,
+      primary: AppColors.primaryDark,
+      onPrimary: AppColors.white,
+      secondary: AppColors.accentLime,
+      onSecondary: AppColors.primaryDark,
+      surface: AppColors.backgroundCream,
+      onSurface: onSurface,
+      onSurfaceVariant: onSurfaceVariant,
+      error: AppColors.errorRed,
+      brightness: Brightness.light,
+    );
+
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primaryGreen,
-        primary: AppColors.primaryDark,
-        secondary: AppColors.accentLime,
-        surface: AppColors.backgroundCream,
-        error: AppColors.errorRed,
-        brightness: Brightness.light,
-      ),
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.backgroundCream,
     );
 
     return base.copyWith(
-      textTheme: _textTheme(base.textTheme),
+      textTheme: _textTheme(base.textTheme, colorScheme),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primaryDark,
         foregroundColor: AppColors.white,
         elevation: 0,
-        titleTextStyle: GoogleFonts.dmSans(
+        titleTextStyle: _sans(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.white,
@@ -34,7 +63,7 @@ abstract final class AppTheme {
         backgroundColor: AppColors.white,
         indicatorColor: AppColors.accentLime.withValues(alpha: 0.35),
         labelTextStyle: WidgetStatePropertyAll(
-          GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600),
+          _sans(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       navigationRailTheme: NavigationRailThemeData(
@@ -43,11 +72,11 @@ abstract final class AppTheme {
         unselectedIconTheme: IconThemeData(
           color: AppColors.white.withValues(alpha: 0.7),
         ),
-        selectedLabelTextStyle: GoogleFonts.dmSans(
+        selectedLabelTextStyle: _sans(
           color: AppColors.accentLime,
           fontWeight: FontWeight.w700,
         ),
-        unselectedLabelTextStyle: GoogleFonts.dmSans(
+        unselectedLabelTextStyle: _sans(
           color: AppColors.white.withValues(alpha: 0.7),
         ),
       ),
@@ -59,15 +88,14 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.dmSans(
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-          ),
+          textStyle: _filledButtonText,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.white,
+        labelStyle: _sans(color: onSurfaceVariant),
+        hintStyle: _sans(color: onSurfaceVariant),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -84,6 +112,13 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
+      listTileTheme: ListTileThemeData(
+        textColor: onSurface,
+        iconColor: onSurfaceVariant,
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: _sans(color: onSurface),
+      ),
     );
   }
 
@@ -92,30 +127,32 @@ abstract final class AppTheme {
     const surfaceContainer = Color(0xFF162B1E);
     const inputFill = Color(0xFF1A2F22);
 
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.accentLime,
+      primary: AppColors.accentLime,
+      onPrimary: AppColors.primaryDark,
+      secondary: AppColors.primaryGreen,
+      onSurface: AppColors.white,
+      onSurfaceVariant: AppColors.mutedGray,
+      surface: surface,
+      error: AppColors.errorRed,
+      brightness: Brightness.dark,
+    );
+
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.accentLime,
-        primary: AppColors.accentLime,
-        onPrimary: AppColors.primaryDark,
-        secondary: AppColors.primaryGreen,
-        onSurface: AppColors.white,
-        onSurfaceVariant: AppColors.mutedGray,
-        surface: surface,
-        error: AppColors.errorRed,
-        brightness: Brightness.dark,
-      ),
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: const Color(0xFF0E1A13),
     );
 
     return base.copyWith(
-      textTheme: _textTheme(base.textTheme),
+      textTheme: _textTheme(base.textTheme, colorScheme),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primaryDark,
         foregroundColor: AppColors.white,
         elevation: 0,
-        titleTextStyle: GoogleFonts.dmSans(
+        titleTextStyle: _sans(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.white,
@@ -125,7 +162,7 @@ abstract final class AppTheme {
         backgroundColor: surface,
         indicatorColor: AppColors.accentLime.withValues(alpha: 0.25),
         labelTextStyle: WidgetStatePropertyAll(
-          GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600),
+          _sans(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       navigationRailTheme: NavigationRailThemeData(
@@ -134,11 +171,11 @@ abstract final class AppTheme {
         unselectedIconTheme: IconThemeData(
           color: AppColors.white.withValues(alpha: 0.7),
         ),
-        selectedLabelTextStyle: GoogleFonts.dmSans(
+        selectedLabelTextStyle: _sans(
           color: AppColors.accentLime,
           fontWeight: FontWeight.w700,
         ),
-        unselectedLabelTextStyle: GoogleFonts.dmSans(
+        unselectedLabelTextStyle: _sans(
           color: AppColors.white.withValues(alpha: 0.7),
         ),
       ),
@@ -150,6 +187,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          textStyle: _filledButtonText,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -161,8 +199,8 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputFill,
-        labelStyle: GoogleFonts.dmSans(color: AppColors.mutedGray),
-        hintStyle: GoogleFonts.dmSans(color: AppColors.mutedGray),
+        labelStyle: _sans(color: AppColors.mutedGray),
+        hintStyle: _sans(color: AppColors.mutedGray),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -219,19 +257,50 @@ abstract final class AppTheme {
     );
   }
 
-  static TextTheme _textTheme(TextTheme base) {
-    return GoogleFonts.dmSansTextTheme(base).copyWith(
-      headlineLarge: GoogleFonts.dmSans(
+  static TextTheme _textTheme(TextTheme base, ColorScheme scheme) {
+    final themed = GoogleFonts.dmSansTextTheme(base).apply(
+      bodyColor: scheme.onSurface,
+      displayColor: scheme.onSurface,
+    );
+
+    return themed.copyWith(
+      headlineLarge: _sans(
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
+        color: scheme.onSurface,
       ),
-      titleLarge: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-      labelLarge: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
-      bodyMedium: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
+      titleLarge: _sans(
+        fontWeight: FontWeight.w700,
+        color: scheme.onSurface,
+      ),
+      titleMedium: _sans(
+        fontWeight: FontWeight.w700,
+        color: scheme.onSurface,
+      ),
+      labelLarge: _sans(
+        fontWeight: FontWeight.w600,
+        color: scheme.onSurface,
+      ),
+      bodyMedium: _sans(
+        fontWeight: FontWeight.w500,
+        color: scheme.onSurface,
+      ),
+      bodySmall: _sans(
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 
+  static TextStyle get filledButtonTextStyle => _filledButtonText;
+
   static TextStyle mono({double size = 14, Color? color}) {
     return GoogleFonts.dmMono(fontSize: size, color: color);
+  }
+
+  static TextStyle monoFrom(BuildContext context, {double size = 14}) {
+    return GoogleFonts.dmMono(
+      fontSize: size,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
   }
 }

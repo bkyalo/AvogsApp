@@ -4,6 +4,7 @@ import 'package:avogs/core/api/api_client.dart';
 import 'package:avogs/core/database/app_database.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 

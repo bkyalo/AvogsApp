@@ -30,11 +30,6 @@ class AdjustmentScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                '${prefill.defaults.reference} · ${prefill.defaults.location}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
               TextFormField(
                 key: ValueKey(prefill.defaults.reference),
                 decoration: const InputDecoration(
@@ -43,11 +38,24 @@ class AdjustmentScreen extends ConsumerWidget {
                 ),
                 onChanged: controller.setMemo,
               ),
+              const SizedBox(height: 8),
+              Text(
+                '${prefill.defaults.reference} · ${prefill.defaults.location}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.errorRed,
+                        side: BorderSide(
+                          color: AppColors.errorRed.withValues(alpha: 0.5),
+                        ),
+                      ),
                       onPressed: () => CatalogPickerSheet.show(
                         context,
                         catalog: prefill.catalog,
@@ -55,12 +63,18 @@ class AdjustmentScreen extends ConsumerWidget {
                         showPrice: (item) => item.materialCost,
                       ),
                       icon: const Icon(Icons.remove_circle_outline),
-                      label: const Text('Decrease (wastage)'),
+                      label: const Text('Wastage'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryGreen,
+                        side: BorderSide(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.5),
+                        ),
+                      ),
                       onPressed: () => CatalogPickerSheet.show(
                         context,
                         catalog: prefill.catalog,
@@ -91,7 +105,11 @@ class AdjustmentScreen extends ConsumerWidget {
           ),
         ),
         TransactionTotalBar(
-          total: state.lines.fold(0, (sum, l) => sum + l.quantity.abs()),
+          total: 0,
+          totalLabel: 'Units changed',
+          totalText: state.lines
+              .fold<double>(0, (sum, l) => sum + l.quantity.abs())
+              .toStringAsFixed(0),
           submitting: state.submitting,
           enabled: state.lines.isNotEmpty,
           submitLabel: 'Save adjustment',

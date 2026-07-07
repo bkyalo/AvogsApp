@@ -32,7 +32,7 @@ class ReceiptPdfService {
       total: total,
     );
     final bytes = await doc.save();
-    final filename = '$reference.pdf';
+    final filename = '${_safeFilename(reference)}.pdf';
     await _sharePdf(bytes, filename, subject: reference);
   }
 
@@ -130,6 +130,14 @@ class ReceiptPdfService {
       ),
     );
     return doc;
+  }
+
+  /// References like "001/2026" contain characters that are invalid in file
+  /// names ("/" turns the name into a nonexistent subdirectory), so replace
+  /// anything unsafe with "-".
+  static String _safeFilename(String name) {
+    final safe = name.replaceAll(RegExp(r'[^\w\-.]+'), '-');
+    return safe.isEmpty ? 'receipt' : safe;
   }
 
   Future<void> _sharePdf(

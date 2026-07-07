@@ -145,6 +145,12 @@ class PurchaseController extends StateNotifier<PurchaseFormState> {
       state = state.copyWith(errorMessage: 'Supplier invoice # is required');
       return null;
     }
+    if (state.lines.any((l) => l.unitPrice <= 0)) {
+      state = state.copyWith(
+        errorMessage: 'Enter a price for every item before submitting',
+      );
+      return null;
+    }
 
     state = state.copyWith(submitting: true, clearError: true);
     try {

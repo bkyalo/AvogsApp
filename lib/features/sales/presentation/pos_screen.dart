@@ -61,43 +61,42 @@ class PosScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               customers.when(
-                data: (list) => DropdownButtonFormField<int>(
-                  value: list.any((c) => c.id == state.customerId)
-                      ? state.customerId
-                      : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Customer',
-                    isDense: true,
-                  ),
-                  items: [
-                    for (final c in list)
-                      DropdownMenuItem(value: c.id, child: Text(c.name)),
-                  ],
-                  onChanged: state.submitting
-                      ? null
-                      : (id) {
-                          if (id != null) controller.setCustomer(id);
-                        },
+                data: (list) => CustomerPickerField(
+                  customers: list,
+                  selectedId: state.customerId,
+                  enabled: !state.submitting,
+                  onSelected: controller.setCustomer,
                 ),
                 loading: () => const LinearProgressIndicator(),
                 error: (e, _) => Text('$e'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
                     child: Text(
                       '${prefill.defaults.reference} · ${prefill.defaults.location}',
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   SegmentedButton<PaymentMethod>(
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
                     segments: const [
-                      ButtonSegment(value: PaymentMethod.cash, label: Text('Cash')),
+                      ButtonSegment(
+                        value: PaymentMethod.cash,
+                        icon: Icon(Icons.payments_outlined, size: 16),
+                        label: Text('Cash'),
+                      ),
                       ButtonSegment(
                         value: PaymentMethod.mpesa,
+                        icon: Icon(Icons.phone_iphone, size: 16),
                         label: Text('M-Pesa'),
                       ),
                     ],
@@ -124,7 +123,7 @@ class PosScreen extends ConsumerWidget {
         ),
         if (layout != LayoutSize.expanded)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(

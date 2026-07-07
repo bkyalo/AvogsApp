@@ -66,19 +66,23 @@ class SupplierInvoiceScreen extends ConsumerWidget {
                     ),
               ),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () => CatalogPickerSheet.show(
-                  context,
-                  catalog: prefill.catalog,
-                  onSelected: controller.addLine,
-                  showPrice: (item) => item.supplierPrice,
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => CatalogPickerSheet.show(
+                    context,
+                    catalog: prefill.catalog,
+                    onSelected: controller.addLine,
+                    showPrice: (item) => item.supplierPrice,
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add item'),
                 ),
-                icon: const Icon(Icons.add),
-                label: const Text('Add item'),
               ),
               const SizedBox(height: 12),
               TransactionLineList(
                 lines: state.lines,
+                requirePrice: true,
                 onQuantityChanged: controller.updateQuantity,
                 onUnitPriceChanged: controller.updatePrice,
                 onRemove: controller.removeLine,
@@ -96,7 +100,9 @@ class SupplierInvoiceScreen extends ConsumerWidget {
         TransactionTotalBar(
           total: state.total,
           submitting: state.submitting,
-          enabled: state.lines.isNotEmpty && state.supplierRef.trim().isNotEmpty,
+          enabled: state.lines.isNotEmpty &&
+              state.supplierRef.trim().isNotEmpty &&
+              state.lines.every((l) => l.unitPrice > 0),
           submitLabel: 'Receive stock',
           onSubmit: () async {
             final details = await controller.submit();

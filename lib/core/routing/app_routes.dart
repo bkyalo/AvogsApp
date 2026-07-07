@@ -8,6 +8,7 @@ abstract final class AppRoutes {
   static const paymentsNew = '/payments/new';
   static const purchasingNew = '/purchasing/new';
   static const inventoryAdjust = '/inventory/adjust';
+  static const inventoryBalances = '/inventory/balances';
   static const history = '/history';
   static const settings = '/settings';
   static const shifts = '/shifts';

@@ -154,7 +154,7 @@ class ReportsRepository {
 
   Map<String, dynamic> _storeQuery([Map<String, dynamic>? extra]) {
     final query = <String, dynamic>{...?extra};
-    if (_storeCode != null && _storeCode!.isNotEmpty) {
+    if (_storeCode != null && _storeCode.isNotEmpty) {
       query['store'] = _storeCode;
     }
     return query;

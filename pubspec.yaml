@@ -30,6 +30,7 @@ dependencies:
   pdf: ^3.11.3
   share_plus: ^11.0.0
   crypto: ^3.0.6
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

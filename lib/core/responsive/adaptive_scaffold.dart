@@ -1,5 +1,7 @@
 import 'package:avogs/core/responsive/breakpoints.dart';
 import 'package:avogs/core/theme/app_colors.dart';
+import 'package:avogs/shared/widgets/app_bottom_nav.dart';
+import 'package:avogs/shared/widgets/app_shell_header.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,6 +14,10 @@ class AdaptiveScaffold extends StatefulWidget {
     required this.destinations,
     required this.child,
     this.actions,
+    this.storeLabel = 'Store',
+    this.isRefreshing = false,
+    this.onHeaderRefresh,
+    this.showShellHeader = true,
   });
 
   final String title;
@@ -20,6 +26,10 @@ class AdaptiveScaffold extends StatefulWidget {
   final List<NavigationDestination> destinations;
   final Widget child;
   final List<Widget>? actions;
+  final String storeLabel;
+  final bool isRefreshing;
+  final VoidCallback? onHeaderRefresh;
+  final bool showShellHeader;
 
   @override
   State<AdaptiveScaffold> createState() => _AdaptiveScaffoldState();
@@ -28,9 +38,24 @@ class AdaptiveScaffold extends StatefulWidget {
 class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
   var _railExtended = true;
 
+  static const _navIcons = <(IconData, IconData)>[
+    (Icons.home_outlined, Icons.home),
+    (Icons.grid_view_outlined, Icons.grid_view),
+    (Icons.timeline_outlined, Icons.timeline),
+    (Icons.person_outline, Icons.person),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final layout = layoutSizeOf(context);
+    final bottomDestinations = [
+      for (var i = 0; i < widget.destinations.length; i++)
+        (
+          icon: _navIcons[i].$1,
+          selectedIcon: _navIcons[i].$2,
+          label: widget.destinations[i].label,
+        ),
+    ];
 
     if (layout == LayoutSize.expanded) {
       return Scaffold(
@@ -63,10 +88,17 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
             Expanded(
               child: Column(
                 children: [
-                  _TopBar(
-                    title: widget.title,
-                    actions: widget.actions,
-                  ),
+                  if (widget.showShellHeader)
+                    AppShellHeader(
+                      storeLabel: widget.storeLabel,
+                      isRefreshing: widget.isRefreshing,
+                      onRefresh: widget.onHeaderRefresh,
+                    )
+                  else
+                    _TopBar(
+                      title: widget.title,
+                      actions: widget.actions,
+                    ),
                   Expanded(child: widget.child),
                 ],
               ),
@@ -77,15 +109,26 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: widget.actions,
-      ),
-      body: widget.child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: widget.selectedIndex,
-        onDestinationSelected: widget.onDestinationSelected,
-        destinations: widget.destinations,
+      body: Column(
+        children: [
+          if (widget.showShellHeader)
+            AppShellHeader(
+              storeLabel: widget.storeLabel,
+              isRefreshing: widget.isRefreshing,
+              onRefresh: widget.onHeaderRefresh,
+            )
+          else
+            AppBar(
+              title: Text(widget.title),
+              actions: widget.actions,
+            ),
+          Expanded(child: widget.child),
+          AppBottomNav(
+            selectedIndex: widget.selectedIndex,
+            onDestinationSelected: widget.onDestinationSelected,
+            destinations: bottomDestinations,
+          ),
+        ],
       ),
     );
   }
@@ -137,16 +180,27 @@ int shellIndexForLocation(String location) {
   return 0;
 }
 
+bool showShellHeaderForLocation(String location) {
+  return location == '/dashboard' ||
+      location == '/services' ||
+      location == '/history' ||
+      location == '/settings';
+}
+
 void goToShellIndex(BuildContext context, int index) {
   switch (index) {
     case 0:
       context.go('/dashboard');
+      break;
     case 1:
       context.go('/services');
+      break;
     case 2:
       context.go('/history');
+      break;
     case 3:
       context.go('/settings');
+      break;
     default:
       context.go('/dashboard');
   }
