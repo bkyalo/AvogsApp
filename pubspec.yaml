@@ -1,0 +1,69 @@
+name: avogs
+description: AVO'Gs retail POS and operations app for FrontAccounting.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  go_router: ^15.1.2
+  dio: ^5.8.0+1
+  drift: ^2.26.1
+  drift_flutter: ^0.2.4
+  sqlite3_flutter_libs: ^0.5.34
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  flutter_secure_storage: ^9.2.4
+  local_auth: ^2.3.0
+  google_fonts: ^6.2.1
+  connectivity_plus: ^6.1.4
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  json_annotation: ^4.9.0
+  freezed_annotation: ^3.0.0
+  printing: ^5.14.2
+  pdf: ^3.11.3
+  share_plus: ^11.0.0
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  drift_dev: ^2.26.1
+  json_serializable: ^6.9.5
+  freezed: ^3.0.6
+  mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: assets/icons/app_icon.png
+    background_color: '#1b3a2a'
+    theme_color: '#1b3a2a'
+  image_path: assets/icons/app_icon.png
+  adaptive_icon_background: '#1b3a2a'
+  adaptive_icon_foreground: assets/icons/app_icon.png
+
+flutter_native_splash:
+  color: '#1b3a2a'
+  image: assets/icons/app_icon.png
+  android_12:
+    color: '#1b3a2a'
+    image: assets/icons/app_icon.png
+  web: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/app_icon.png
