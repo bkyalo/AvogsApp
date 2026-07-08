@@ -191,7 +191,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 void _refreshShellTab(WidgetRef ref, int index) {
   switch (index) {
     case 0:
-      ref.read(masterDataSyncProvider.notifier).refreshCustomersAndSuppliers();
+      ref.read(masterDataSyncProvider.notifier).refreshForHome();
       ref.invalidate(dashboardProvider);
       break;
     case 1:
@@ -270,9 +270,7 @@ class AppShell extends ConsumerWidget {
       onHeaderRefresh: () => _refreshShellTab(ref, index),
       onDestinationSelected: (i) {
         if (i == 0) {
-          ref
-              .read(masterDataSyncProvider.notifier)
-              .refreshCustomersAndSuppliers();
+          ref.read(masterDataSyncProvider.notifier).refreshForHome();
         }
         goToShellIndex(context, i);
       },

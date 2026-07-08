@@ -4,13 +4,13 @@ import 'package:avogs/core/sync/sync_service.dart';
 import 'package:avogs/core/theme/app_colors.dart';
 import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/features/history/application/history_provider.dart';
+import 'package:avogs/features/master_data/master_data_repository.dart';
+import 'package:avogs/features/payments/presentation/payment_receipt_screen.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:avogs/features/sales/presentation/sales_receipt_screen.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
-import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
 import 'package:avogs/shared/widgets/sync_status_banner.dart';
-import 'package:avogs/shared/widgets/transaction_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -113,25 +113,31 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Future<void> _openDetail(BuildContext context, HistoryEntry entry) async {
     if (entry.type == SyncItemType.salesPayment) {
+      String? customerName;
+      try {
+        final customers = await ref.read(customersProvider.future);
+        final customerId = entry.customerId;
+        if (customerId != null) {
+          customerName = customers
+              .where((c) => c.id == customerId)
+              .map((c) => c.name)
+              .firstOrNull;
+        }
+      } catch (_) {}
+
       if (entry.source == HistoryEntrySource.api && entry.serverId != null) {
         try {
           final payment = await ref
               .read(paymentRepositoryProvider)
               .fetchPayment(entry.serverId!);
           if (!context.mounted) return;
-          await showTransactionSuccess(
+          await Navigator.push<void>(
             context,
-            TransactionSuccessDetails(
-              title: 'Payment',
-              reference: payment.reference,
-              subtitle: payment.documentDate,
-              total: payment.amount,
-              totalLabel: 'Amount',
-              detailLines: [
-                if (payment.memo != null && payment.memo!.isNotEmpty)
-                  payment.memo!,
-                ...payment.allocations.map((a) => 'Allocated to $a'),
-              ],
+            MaterialPageRoute<void>(
+              builder: (_) => PaymentReceiptScreen.fromDetail(
+                payment,
+                customerName: customerName,
+              ),
             ),
           );
           return;
@@ -139,18 +145,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       }
 
       if (entry.payloadJson != null) {
-        if (!context.mounted) return;
-        await showTransactionSuccess(
-          context,
-          TransactionSuccessDetails(
-            title: entry.status == 'synced' ? 'Payment' : 'Payment queued',
-            reference: entry.reference,
-            subtitle: formatDate(entry.timestamp),
-            total: entry.total,
-            totalLabel: 'Amount',
-            queuedOffline: entry.status != 'synced',
-          ),
-        );
+        try {
+          final payload = Map<String, dynamic>.from(
+            jsonDecode(entry.payloadJson!) as Map,
+          );
+          if (!context.mounted) return;
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => PaymentReceiptScreen.fromPayload(
+                payload,
+                customerName: customerName ?? entry.subtitle,
+                queuedOffline: entry.status != 'synced',
+              ),
+            ),
+          );
+        } catch (_) {}
       }
       return;
     }

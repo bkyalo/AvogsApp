@@ -5,6 +5,7 @@ import 'package:avogs/core/transactions/transaction_submitter.dart';
 import 'package:avogs/features/history/application/history_provider.dart';
 import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
+import 'package:avogs/features/sales/application/sales_prefill_cache.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
@@ -147,22 +148,44 @@ class PosController extends StateNotifier<PosState> {
   }) async {
     state = state.copyWith(loading: true, clearError: true, lines: []);
     try {
-      final salesRepo = _ref.read(salesRepositoryProvider);
-      final prefill = await salesRepo.fetchPrefill(
-        customerId: customerId,
-        location: location,
-      );
+      final cache = _ref.read(salesPrefillCacheProvider);
+      final isOnline = _ref.read(syncServiceProvider).isOnline;
+      SalesPrefill? prefill;
+
+      if (isOnline) {
+        prefill = await cache.fetchAndCache(
+          customerId: customerId,
+          location: location,
+        );
+      } else {
+        prefill = await cache.load(
+          customerId: customerId,
+          location: location,
+        );
+      }
+
+      if (prefill == null) {
+        state = state.copyWith(
+          loading: false,
+          errorMessage: isOnline
+              ? 'Could not load sale catalog'
+              : 'Offline — tap Home while online to sync stock and prices first',
+        );
+        return;
+      }
 
       // Bank accounts come from payment prefill — optional; don't block the sale
       // screen if that endpoint is unavailable.
       var bankAccounts = <BankAccount>[];
-      try {
-        final paymentPrefill = await _ref
-            .read(paymentRepositoryProvider)
-            .fetchPrefill(customerId: customerId);
-        bankAccounts = paymentPrefill.bankAccounts;
-      } on ApiException {
-        // Pay-now may lack bank accounts until payment prefill works.
+      if (isOnline) {
+        try {
+          final paymentPrefill = await _ref
+              .read(paymentRepositoryProvider)
+              .fetchPrefill(customerId: customerId);
+          bankAccounts = paymentPrefill.bankAccounts;
+        } on ApiException {
+          // Pay-now may lack bank accounts until payment prefill works.
+        }
       }
 
       var bankAccountId = bankAccountForPaymentMethod(
@@ -259,12 +282,17 @@ class PosController extends StateNotifier<PosState> {
 
     state = state.copyWith(submitting: true, clearError: true);
     try {
+      final isOnline = _ref.read(syncServiceProvider).isOnline;
+      final reference = isOnline
+          ? prefill.defaults.reference
+          : 'OFF-${DateTime.now().toIso8601String().replaceAll(':', '').split('.').first}';
+
       final payload = <String, dynamic>{
         'customer_id': prefill.defaults.customerId,
         'branch_id': prefill.defaults.branchId,
         'location': prefill.defaults.location,
         'document_date': prefill.defaults.documentDate,
-        'reference': prefill.defaults.reference,
+        'reference': reference,
         'lines': state.lines.map((l) => l.toSalesJson()).toList(),
       };
 

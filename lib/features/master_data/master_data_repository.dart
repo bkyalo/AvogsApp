@@ -1,4 +1,6 @@
 import 'package:avogs/core/api/api_client.dart';
+import 'package:avogs/core/config/app_config_provider.dart';
+import 'package:avogs/features/sales/application/sales_prefill_cache.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -136,6 +138,23 @@ class MasterDataSyncNotifier extends Notifier<void> {
       ref.read(customersProvider.notifier).refresh(),
       ref.read(suppliersProvider.notifier).refresh(),
     ]);
+  }
+
+  /// Reload master data and warm the POS catalog cache for offline sales.
+  Future<void> refreshForHome() async {
+    await refreshCustomersAndSuppliers();
+    await ref.read(appConfigProvider.notifier).ready;
+    final config = ref.read(appConfigProvider);
+    final location = config.selectedStoreCode;
+    if (location == null || location.isEmpty) return;
+
+    try {
+      final customers = await ref.read(customersProvider.future);
+      await ref.read(salesPrefillCacheProvider).prefetchForStore(
+            location: location,
+            customerId: customers.cashSalesCustomerId,
+          );
+    } catch (_) {}
   }
 }
 

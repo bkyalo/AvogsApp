@@ -4,12 +4,24 @@ import 'package:drift/drift.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [SyncQueueItems, CachedStores])
+@DriftDatabase(tables: [SyncQueueItems, CachedStores, CachedSalesPrefills])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? openDatabaseConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(cachedSalesPrefills);
+          }
+        },
+      );
 
   Future<List<SyncQueueItem>> pendingSyncItems() {
     return (select(syncQueueItems)

@@ -880,11 +880,341 @@ class CachedStoresCompanion extends UpdateCompanion<CachedStore> {
   }
 }
 
+class $CachedSalesPrefillsTable extends CachedSalesPrefills
+    with TableInfo<$CachedSalesPrefillsTable, CachedSalesPrefill> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedSalesPrefillsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _customerIdMeta = const VerificationMeta(
+    'customerId',
+  );
+  @override
+  late final GeneratedColumn<int> customerId = GeneratedColumn<int>(
+    'customer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _locationMeta = const VerificationMeta(
+    'location',
+  );
+  @override
+  late final GeneratedColumn<String> location = GeneratedColumn<String>(
+    'location',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _prefillJsonMeta = const VerificationMeta(
+    'prefillJson',
+  );
+  @override
+  late final GeneratedColumn<String> prefillJson = GeneratedColumn<String>(
+    'prefill_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cachedAt = GeneratedColumn<DateTime>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    customerId,
+    location,
+    prefillJson,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_sales_prefills';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedSalesPrefill> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('customer_id')) {
+      context.handle(
+        _customerIdMeta,
+        customerId.isAcceptableOrUnknown(data['customer_id']!, _customerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_customerIdMeta);
+    }
+    if (data.containsKey('location')) {
+      context.handle(
+        _locationMeta,
+        location.isAcceptableOrUnknown(data['location']!, _locationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_locationMeta);
+    }
+    if (data.containsKey('prefill_json')) {
+      context.handle(
+        _prefillJsonMeta,
+        prefillJson.isAcceptableOrUnknown(
+          data['prefill_json']!,
+          _prefillJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_prefillJsonMeta);
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cachedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {customerId, location};
+  @override
+  CachedSalesPrefill map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedSalesPrefill(
+      customerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}customer_id'],
+      )!,
+      location: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location'],
+      )!,
+      prefillJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prefill_json'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedSalesPrefillsTable createAlias(String alias) {
+    return $CachedSalesPrefillsTable(attachedDatabase, alias);
+  }
+}
+
+class CachedSalesPrefill extends DataClass
+    implements Insertable<CachedSalesPrefill> {
+  final int customerId;
+  final String location;
+  final String prefillJson;
+  final DateTime cachedAt;
+  const CachedSalesPrefill({
+    required this.customerId,
+    required this.location,
+    required this.prefillJson,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['customer_id'] = Variable<int>(customerId);
+    map['location'] = Variable<String>(location);
+    map['prefill_json'] = Variable<String>(prefillJson);
+    map['cached_at'] = Variable<DateTime>(cachedAt);
+    return map;
+  }
+
+  CachedSalesPrefillsCompanion toCompanion(bool nullToAbsent) {
+    return CachedSalesPrefillsCompanion(
+      customerId: Value(customerId),
+      location: Value(location),
+      prefillJson: Value(prefillJson),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory CachedSalesPrefill.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedSalesPrefill(
+      customerId: serializer.fromJson<int>(json['customerId']),
+      location: serializer.fromJson<String>(json['location']),
+      prefillJson: serializer.fromJson<String>(json['prefillJson']),
+      cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'customerId': serializer.toJson<int>(customerId),
+      'location': serializer.toJson<String>(location),
+      'prefillJson': serializer.toJson<String>(prefillJson),
+      'cachedAt': serializer.toJson<DateTime>(cachedAt),
+    };
+  }
+
+  CachedSalesPrefill copyWith({
+    int? customerId,
+    String? location,
+    String? prefillJson,
+    DateTime? cachedAt,
+  }) => CachedSalesPrefill(
+    customerId: customerId ?? this.customerId,
+    location: location ?? this.location,
+    prefillJson: prefillJson ?? this.prefillJson,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  CachedSalesPrefill copyWithCompanion(CachedSalesPrefillsCompanion data) {
+    return CachedSalesPrefill(
+      customerId: data.customerId.present
+          ? data.customerId.value
+          : this.customerId,
+      location: data.location.present ? data.location.value : this.location,
+      prefillJson: data.prefillJson.present
+          ? data.prefillJson.value
+          : this.prefillJson,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedSalesPrefill(')
+          ..write('customerId: $customerId, ')
+          ..write('location: $location, ')
+          ..write('prefillJson: $prefillJson, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(customerId, location, prefillJson, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedSalesPrefill &&
+          other.customerId == this.customerId &&
+          other.location == this.location &&
+          other.prefillJson == this.prefillJson &&
+          other.cachedAt == this.cachedAt);
+}
+
+class CachedSalesPrefillsCompanion extends UpdateCompanion<CachedSalesPrefill> {
+  final Value<int> customerId;
+  final Value<String> location;
+  final Value<String> prefillJson;
+  final Value<DateTime> cachedAt;
+  final Value<int> rowid;
+  const CachedSalesPrefillsCompanion({
+    this.customerId = const Value.absent(),
+    this.location = const Value.absent(),
+    this.prefillJson = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedSalesPrefillsCompanion.insert({
+    required int customerId,
+    required String location,
+    required String prefillJson,
+    required DateTime cachedAt,
+    this.rowid = const Value.absent(),
+  }) : customerId = Value(customerId),
+       location = Value(location),
+       prefillJson = Value(prefillJson),
+       cachedAt = Value(cachedAt);
+  static Insertable<CachedSalesPrefill> custom({
+    Expression<int>? customerId,
+    Expression<String>? location,
+    Expression<String>? prefillJson,
+    Expression<DateTime>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (customerId != null) 'customer_id': customerId,
+      if (location != null) 'location': location,
+      if (prefillJson != null) 'prefill_json': prefillJson,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedSalesPrefillsCompanion copyWith({
+    Value<int>? customerId,
+    Value<String>? location,
+    Value<String>? prefillJson,
+    Value<DateTime>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedSalesPrefillsCompanion(
+      customerId: customerId ?? this.customerId,
+      location: location ?? this.location,
+      prefillJson: prefillJson ?? this.prefillJson,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (customerId.present) {
+      map['customer_id'] = Variable<int>(customerId.value);
+    }
+    if (location.present) {
+      map['location'] = Variable<String>(location.value);
+    }
+    if (prefillJson.present) {
+      map['prefill_json'] = Variable<String>(prefillJson.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<DateTime>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedSalesPrefillsCompanion(')
+          ..write('customerId: $customerId, ')
+          ..write('location: $location, ')
+          ..write('prefillJson: $prefillJson, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $SyncQueueItemsTable syncQueueItems = $SyncQueueItemsTable(this);
   late final $CachedStoresTable cachedStores = $CachedStoresTable(this);
+  late final $CachedSalesPrefillsTable cachedSalesPrefills =
+      $CachedSalesPrefillsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -892,6 +1222,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     syncQueueItems,
     cachedStores,
+    cachedSalesPrefills,
   ];
 }
 
@@ -1360,6 +1691,207 @@ typedef $$CachedStoresTableProcessedTableManager =
       CachedStore,
       PrefetchHooks Function()
     >;
+typedef $$CachedSalesPrefillsTableCreateCompanionBuilder =
+    CachedSalesPrefillsCompanion Function({
+      required int customerId,
+      required String location,
+      required String prefillJson,
+      required DateTime cachedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedSalesPrefillsTableUpdateCompanionBuilder =
+    CachedSalesPrefillsCompanion Function({
+      Value<int> customerId,
+      Value<String> location,
+      Value<String> prefillJson,
+      Value<DateTime> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedSalesPrefillsTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedSalesPrefillsTable> {
+  $$CachedSalesPrefillsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prefillJson => $composableBuilder(
+    column: $table.prefillJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedSalesPrefillsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedSalesPrefillsTable> {
+  $$CachedSalesPrefillsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get location => $composableBuilder(
+    column: $table.location,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prefillJson => $composableBuilder(
+    column: $table.prefillJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedSalesPrefillsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedSalesPrefillsTable> {
+  $$CachedSalesPrefillsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get customerId => $composableBuilder(
+    column: $table.customerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get location =>
+      $composableBuilder(column: $table.location, builder: (column) => column);
+
+  GeneratedColumn<String> get prefillJson => $composableBuilder(
+    column: $table.prefillJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$CachedSalesPrefillsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedSalesPrefillsTable,
+          CachedSalesPrefill,
+          $$CachedSalesPrefillsTableFilterComposer,
+          $$CachedSalesPrefillsTableOrderingComposer,
+          $$CachedSalesPrefillsTableAnnotationComposer,
+          $$CachedSalesPrefillsTableCreateCompanionBuilder,
+          $$CachedSalesPrefillsTableUpdateCompanionBuilder,
+          (
+            CachedSalesPrefill,
+            BaseReferences<
+              _$AppDatabase,
+              $CachedSalesPrefillsTable,
+              CachedSalesPrefill
+            >,
+          ),
+          CachedSalesPrefill,
+          PrefetchHooks Function()
+        > {
+  $$CachedSalesPrefillsTableTableManager(
+    _$AppDatabase db,
+    $CachedSalesPrefillsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedSalesPrefillsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedSalesPrefillsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CachedSalesPrefillsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> customerId = const Value.absent(),
+                Value<String> location = const Value.absent(),
+                Value<String> prefillJson = const Value.absent(),
+                Value<DateTime> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedSalesPrefillsCompanion(
+                customerId: customerId,
+                location: location,
+                prefillJson: prefillJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int customerId,
+                required String location,
+                required String prefillJson,
+                required DateTime cachedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CachedSalesPrefillsCompanion.insert(
+                customerId: customerId,
+                location: location,
+                prefillJson: prefillJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedSalesPrefillsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedSalesPrefillsTable,
+      CachedSalesPrefill,
+      $$CachedSalesPrefillsTableFilterComposer,
+      $$CachedSalesPrefillsTableOrderingComposer,
+      $$CachedSalesPrefillsTableAnnotationComposer,
+      $$CachedSalesPrefillsTableCreateCompanionBuilder,
+      $$CachedSalesPrefillsTableUpdateCompanionBuilder,
+      (
+        CachedSalesPrefill,
+        BaseReferences<
+          _$AppDatabase,
+          $CachedSalesPrefillsTable,
+          CachedSalesPrefill
+        >,
+      ),
+      CachedSalesPrefill,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1368,4 +1900,6 @@ class $AppDatabaseManager {
       $$SyncQueueItemsTableTableManager(_db, _db.syncQueueItems);
   $$CachedStoresTableTableManager get cachedStores =>
       $$CachedStoresTableTableManager(_db, _db.cachedStores);
+  $$CachedSalesPrefillsTableTableManager get cachedSalesPrefills =>
+      $$CachedSalesPrefillsTableTableManager(_db, _db.cachedSalesPrefills);
 }

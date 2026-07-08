@@ -15,6 +15,16 @@ class SyncQueueItems extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class CachedSalesPrefills extends Table {
+  IntColumn get customerId => integer()();
+  TextColumn get location => text()();
+  TextColumn get prefillJson => text()();
+  DateTimeColumn get cachedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {customerId, location};
+}
+
 class CachedStores extends Table {
   TextColumn get code => text()();
   TextColumn get name => text()();

@@ -344,6 +344,34 @@ class PendingInvoicesResponse {
   final double totalOutstanding;
 }
 
+class PaymentAllocationDetail {
+  const PaymentAllocationDetail({
+    required this.transType,
+    required this.transNo,
+    required this.allocated,
+    this.reference,
+    this.date,
+  });
+
+  factory PaymentAllocationDetail.fromJson(Map<String, dynamic> json) {
+    return PaymentAllocationDetail(
+      transType: json['trans_type'] as int? ?? 10,
+      transNo: json['trans_no'] as int? ?? 0,
+      allocated: (json['allocated'] as num?)?.toDouble() ??
+          (json['amount'] as num?)?.toDouble() ??
+          0,
+      reference: json['reference'] as String?,
+      date: json['date'] as String? ?? json['document_date'] as String?,
+    );
+  }
+
+  final int transType;
+  final int transNo;
+  final double allocated;
+  final String? reference;
+  final String? date;
+}
+
 class PaymentDetail {
   const PaymentDetail({
     required this.paymentNo,
@@ -351,6 +379,9 @@ class PaymentDetail {
     required this.amount,
     this.documentDate,
     this.memo,
+    this.customerId,
+    this.currency,
+    this.discount,
     this.allocations = const [],
   });
 
@@ -361,12 +392,12 @@ class PaymentDetail {
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       documentDate: json['document_date'] as String?,
       memo: json['memo'] as String?,
+      customerId: json['customer_id'] as int?,
+      currency: json['currency'] as String?,
+      discount: (json['discount'] as num?)?.toDouble(),
       allocations: (json['allocations'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
-          .map(
-            (a) =>
-                '${a['trans_no']}: ${(a['allocated'] as num?)?.toDouble() ?? a['amount']}',
-          )
+          .map(PaymentAllocationDetail.fromJson)
           .toList(),
     );
   }
@@ -376,7 +407,10 @@ class PaymentDetail {
   final double amount;
   final String? documentDate;
   final String? memo;
-  final List<String> allocations;
+  final int? customerId;
+  final String? currency;
+  final double? discount;
+  final List<PaymentAllocationDetail> allocations;
 }
 
 class SubmitResult {

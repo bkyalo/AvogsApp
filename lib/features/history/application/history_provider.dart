@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:avogs/core/database/app_database.dart';
 import 'package:avogs/core/sync/sync_service.dart';
+import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +20,7 @@ class HistoryEntry {
     required this.source,
     this.serverId,
     this.payloadJson,
+    this.customerId,
   });
 
   final String id;
@@ -31,6 +33,7 @@ class HistoryEntry {
   final HistoryEntrySource source;
   final int? serverId;
   final String? payloadJson;
+  final int? customerId;
 
   String get typeLabel => switch (type) {
         SyncItemType.salesInvoice => 'Sale',
@@ -45,7 +48,18 @@ class HistoryEntry {
 final historyEntriesProvider = FutureProvider<List<HistoryEntry>>((ref) async {
   final db = ref.watch(appDatabaseProvider);
   final localItems = await db.allSyncItems();
-  final localEntries = localItems.map(_entryFromSyncItem).toList();
+
+  Map<int, String> customerNames = {};
+  try {
+    final customers = await ref.watch(customersProvider.future);
+    customerNames = {
+      for (final c in customers) c.id: c.name,
+    };
+  } catch (_) {}
+
+  final localEntries = localItems
+      .map((item) => _entryFromSyncItem(item, customerNames))
+      .toList();
 
   List<HistoryEntry> apiEntries = [];
   try {
@@ -62,7 +76,10 @@ final historyEntriesProvider = FutureProvider<List<HistoryEntry>>((ref) async {
   return merged;
 });
 
-HistoryEntry _entryFromSyncItem(SyncQueueItem item) {
+HistoryEntry _entryFromSyncItem(
+  SyncQueueItem item,
+  Map<int, String> customerNames,
+) {
   final type = SyncItemType.values.firstWhere(
     (t) => t.value == item.type,
     orElse: () => SyncItemType.salesInvoice,
@@ -71,8 +88,9 @@ HistoryEntry _entryFromSyncItem(SyncQueueItem item) {
     jsonDecode(item.payloadJson) as Map,
   );
   final reference = payload['reference'] as String? ?? item.clientRef;
-  final subtitle = _subtitleForPayload(type, payload);
-  final total = _totalFromPayload(payload);
+  final customerId = _parseInt(payload['customer_id']);
+  final subtitle = _subtitleForPayload(type, payload, customerNames);
+  final total = _totalFromPayload(type, payload);
 
   return HistoryEntry(
     id: item.id,
@@ -85,6 +103,7 @@ HistoryEntry _entryFromSyncItem(SyncQueueItem item) {
     source: HistoryEntrySource.local,
     serverId: item.serverId,
     payloadJson: item.payloadJson,
+    customerId: customerId,
   );
 }
 
@@ -102,12 +121,20 @@ HistoryEntry _entryFromShadowSale(ShadowSale sale) {
   );
 }
 
-String _subtitleForPayload(SyncItemType type, Map<String, dynamic> payload) {
+String _subtitleForPayload(
+  SyncItemType type,
+  Map<String, dynamic> payload,
+  Map<int, String> customerNames,
+) {
+  final customerId = _parseInt(payload['customer_id']);
+  final customerLabel = customerId == null
+      ? 'Customer #?'
+      : customerNames[customerId] ?? 'Customer #$customerId';
+
   return switch (type) {
     SyncItemType.salesInvoice =>
-      'Customer #${payload['customer_id'] ?? '?'} · ${payload['location'] ?? ''}',
-    SyncItemType.salesPayment =>
-      'Customer #${payload['customer_id'] ?? '?'}',
+      '$customerLabel · ${payload['location'] ?? ''}',
+    SyncItemType.salesPayment => customerLabel,
     SyncItemType.supplierInvoice =>
       '${payload['supplier_id'] ?? '?'} · ${payload['location'] ?? ''}',
     SyncItemType.inventoryAdjustment =>
@@ -119,7 +146,19 @@ String _subtitleForPayload(SyncItemType type, Map<String, dynamic> payload) {
   };
 }
 
-double? _totalFromPayload(Map<String, dynamic> payload) {
+int? _parseInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+double? _totalFromPayload(SyncItemType type, Map<String, dynamic> payload) {
+  if (type == SyncItemType.salesPayment) {
+    final amount = (payload['amount'] as num?)?.toDouble();
+    if (amount != null && amount > 0) return amount;
+  }
+
   final lines = payload['lines'] as List<dynamic>? ?? [];
   if (lines.isEmpty) return null;
   var sum = 0.0;
