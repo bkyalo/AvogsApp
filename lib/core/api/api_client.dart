@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:avogs/core/api/api_error_mapper.dart';
@@ -23,26 +24,35 @@ class ApiClient {
   final Dio _dio;
   final AppConfig _config;
 
+  static final _plainJson = Options(responseType: ResponseType.plain);
+
   String get _baseUrl => _config.baseUrl;
 
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    return _request(() => _dio.get<Map<String, dynamic>>(
-          '$_baseUrl$path',
-          queryParameters: queryParameters,
-        ));
+    final data = await _request(
+      () => _dio.get<dynamic>(
+        '$_baseUrl$path',
+        queryParameters: queryParameters,
+        options: _plainJson,
+      ),
+    );
+    return _expectMap(data, path);
   }
 
   Future<List<dynamic>> getJsonList(
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    final data = await _request(() => _dio.get<dynamic>(
-          '$_baseUrl$path',
-          queryParameters: queryParameters,
-        ));
+    final data = await _request(
+      () => _dio.get<dynamic>(
+        '$_baseUrl$path',
+        queryParameters: queryParameters,
+        options: _plainJson,
+      ),
+    );
     if (data is List) return data;
     throw ApiException(message: 'Expected JSON array from $path');
   }
@@ -51,14 +61,22 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
   }) async {
-    return _request(() => _dio.post<Map<String, dynamic>>(
-          '$_baseUrl$path',
-          data: body,
-        ));
+    final data = await _request(
+      () => _dio.post<dynamic>(
+        '$_baseUrl$path',
+        data: body,
+        options: _plainJson,
+      ),
+    );
+    return _expectMap(data, path);
   }
 
   Future<void> postEmpty(String path) async {
-    await _request(() => _dio.post<void>('$_baseUrl$path'));
+    try {
+      await _dio.post<void>('$_baseUrl$path');
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
   }
 
   /// Multipart upload, e.g. `POST /media` with a `file` field. Takes raw
@@ -77,32 +95,56 @@ class ApiClient {
     final formData = FormData.fromMap({
       field: MultipartFile.fromBytes(bytes, filename: filename),
     });
-    return _request(() => _dio.post<Map<String, dynamic>>(
-          '$_baseUrl$path',
-          data: formData,
-          onSendProgress: onSendProgress,
-          options: Options(
-            sendTimeout: const Duration(minutes: 2),
-            receiveTimeout: const Duration(minutes: 2),
-          ),
-        ));
+    final data = await _request(
+      () => _dio.post<dynamic>(
+        '$_baseUrl$path',
+        data: formData,
+        onSendProgress: onSendProgress,
+        options: Options(
+          responseType: ResponseType.plain,
+          sendTimeout: const Duration(minutes: 2),
+          receiveTimeout: const Duration(minutes: 2),
+        ),
+      ),
+    );
+    return _expectMap(data, path);
   }
 
-  Future<T> _request<T>(Future<Response<T>> Function() call) async {
+  Map<String, dynamic> _expectMap(dynamic data, String path) {
+    if (data is Map<String, dynamic>) return data;
+    throw ApiException(message: 'Expected JSON object from $path');
+  }
+
+  dynamic _decodeBody(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Map || raw is List) return raw;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return null;
+      return jsonDecode(trimmed);
+    }
+    return raw;
+  }
+
+  Future<dynamic> _request(
+    Future<Response<dynamic>> Function() call,
+  ) async {
     try {
       final response = await call();
-      final data = response.data;
-      if (data == null) {
+      final decoded = _decodeBody(response.data);
+      if (decoded == null) {
         throw ApiException(
-          message: 'Empty response',
+          message: 'Empty response (HTTP ${response.statusCode ?? 0})',
           statusCode: response.statusCode,
         );
       }
-      if (data is Map<String, dynamic>) return data as T;
-      if (data is List) return data as T;
-      return data;
+      return decoded;
+    } on ApiException {
+      rethrow;
     } on DioException catch (e) {
       throw mapDioError(e);
+    } on FormatException catch (e) {
+      throw ApiException(message: 'Invalid JSON response: $e');
     }
   }
 }

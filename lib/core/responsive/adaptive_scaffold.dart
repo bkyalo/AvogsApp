@@ -48,6 +48,7 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
   @override
   Widget build(BuildContext context) {
     final layout = layoutSizeOf(context);
+    final canPop = GoRouter.of(context).canPop();
     final bottomDestinations = [
       for (var i = 0; i < widget.destinations.length; i++)
         (
@@ -98,6 +99,8 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
                     _TopBar(
                       title: widget.title,
                       actions: widget.actions,
+                      canPop: canPop,
+                      onBack: canPop ? () => context.pop() : null,
                     ),
                   Expanded(child: widget.child),
                 ],
@@ -121,6 +124,10 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
             AppBar(
               title: Text(widget.title),
               actions: widget.actions,
+              automaticallyImplyLeading: canPop,
+              leading: canPop
+                  ? BackButton(onPressed: () => context.pop())
+                  : null,
             ),
           Expanded(child: widget.child),
           AppBottomNav(
@@ -135,10 +142,17 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, this.actions});
+  const _TopBar({
+    required this.title,
+    this.actions,
+    this.canPop = false,
+    this.onBack,
+  });
 
   final String title;
   final List<Widget>? actions;
+  final bool canPop;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +164,14 @@ class _TopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
+              if (canPop && onBack != null) ...[
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back, color: AppColors.white),
+                  tooltip: 'Back',
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
                   title,

@@ -90,7 +90,7 @@ class ServicesScreen extends StatelessWidget {
               const SizedBox(height: 18),
               _FeaturedServiceCard(
                 service: _featured,
-                onTap: () => context.go(_featured.route),
+                onTap: () => context.push(_featured.route),
               ),
               const SizedBox(height: 12),
               GridView.builder(
@@ -113,7 +113,7 @@ class ServicesScreen extends StatelessWidget {
                     isDark: isDark,
                     onSurface: onSurface,
                     onSurfaceVariant: onSurfaceVariant,
-                    onTap: () => context.go(service.route),
+                    onTap: () => context.push(service.route),
                   );
                 },
               ),

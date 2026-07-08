@@ -1,10 +1,12 @@
+import 'dart:convert';
+
 import 'package:avogs/core/api/api_exception.dart';
 import 'package:dio/dio.dart';
 
 ApiException mapDioError(DioException error) {
   final response = error.response;
-  if (response?.data is Map<String, dynamic>) {
-    final data = response!.data as Map<String, dynamic>;
+  final data = _decodeErrorBody(response?.data);
+  if (data is Map<String, dynamic>) {
     final err = data['error'];
     if (err is Map<String, dynamic>) {
       final fieldsRaw = err['fields'];
@@ -16,7 +18,7 @@ ApiException mapDioError(DioException error) {
       }
       return ApiException(
         message: '${err['message'] ?? 'Request failed'}',
-        statusCode: response.statusCode,
+        statusCode: response?.statusCode,
         code: err['code'] as String?,
         fields: fields,
       );
@@ -56,4 +58,17 @@ String _connectionMessage(DioException error) {
   }
 
   return 'Could not connect to the server. Check your network and API environment in Settings.';
+}
+
+dynamic _decodeErrorBody(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is Map) return raw;
+  if (raw is String && raw.trim().isNotEmpty) {
+    try {
+      return jsonDecode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }

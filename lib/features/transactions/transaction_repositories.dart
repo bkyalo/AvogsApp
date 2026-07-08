@@ -14,8 +14,12 @@ class SalesPrefill {
   });
 
   factory SalesPrefill.fromJson(Map<String, dynamic> json) {
+    final defaultsRaw = json['defaults'];
+    if (defaultsRaw is! Map<String, dynamic>) {
+      throw FormatException('Missing defaults in sales prefill');
+    }
     return SalesPrefill(
-      defaults: SalesDefaults.fromJson(json['defaults'] as Map<String, dynamic>),
+      defaults: SalesDefaults.fromJson(defaultsRaw),
       catalog: (json['catalog'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .map(CatalogItem.fromJson)
@@ -48,11 +52,11 @@ class SalesDefaults {
 
   factory SalesDefaults.fromJson(Map<String, dynamic> json) {
     return SalesDefaults(
-      customerId: json['customer_id'] as int,
-      branchId: json['branch_id'] as int,
-      location: json['location'] as String,
-      documentDate: json['document_date'] as String,
-      reference: json['reference'] as String,
+      customerId: _parseInt(json['customer_id']) ?? 0,
+      branchId: _parseInt(json['branch_id']) ?? 0,
+      location: json['location'] as String? ?? '',
+      documentDate: json['document_date'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
       currency: json['currency'] as String? ?? 'KES',
       dueDate: json['due_date'] as String?,
       deliverTo: json['deliver_to'] as String?,
@@ -164,12 +168,12 @@ class PaymentDefaults {
 
   factory PaymentDefaults.fromJson(Map<String, dynamic> json) {
     return PaymentDefaults(
-      customerId: json['customer_id'] as int,
-      branchId: json['branch_id'] as int,
+      customerId: _parseInt(json['customer_id']) ?? 0,
+      branchId: _parseInt(json['branch_id']) ?? 0,
       currency: json['currency'] as String? ?? 'KES',
-      documentDate: json['document_date'] as String,
-      reference: json['reference'] as String,
-      bankAccount: json['bank_account'] as int,
+      documentDate: json['document_date'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+      bankAccount: _parseInt(json['bank_account']) ?? 0,
       amount: (json['amount'] as num?)?.toDouble(),
     );
   }
@@ -342,3 +346,10 @@ class AdjustmentRepository {
 final adjustmentRepositoryProvider = Provider<AdjustmentRepository>((ref) {
   return AdjustmentRepository(ref.watch(apiClientProvider));
 });
+
+int? _parseInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse('$value');
+}

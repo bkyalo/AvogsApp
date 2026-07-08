@@ -118,9 +118,10 @@ class PosController extends StateNotifier<PosState> {
 
   Future<void> _init() async {
     try {
+      await _ref.read(appConfigProvider.notifier).ready;
       final config = _ref.read(appConfigProvider);
       var location = config.selectedStoreCode;
-      if (location == null) {
+      if (location == null || location.isEmpty) {
         final stores = await _ref.read(storesProvider.future);
         location = stores.isNotEmpty ? stores.first.code : 'DEF';
         if (stores.isNotEmpty) {
@@ -147,20 +148,31 @@ class PosController extends StateNotifier<PosState> {
     state = state.copyWith(loading: true, clearError: true, lines: []);
     try {
       final salesRepo = _ref.read(salesRepositoryProvider);
-      final paymentRepo = _ref.read(paymentRepositoryProvider);
+      final prefill = await salesRepo.fetchPrefill(
+        customerId: customerId,
+        location: location,
+      );
 
-      final results = await Future.wait([
-        salesRepo.fetchPrefill(customerId: customerId, location: location),
-        paymentRepo.fetchPrefill(customerId: customerId),
-      ]);
+      // Bank accounts come from payment prefill — optional; don't block the sale
+      // screen if that endpoint is unavailable.
+      var bankAccounts = <BankAccount>[];
+      try {
+        final paymentPrefill = await _ref
+            .read(paymentRepositoryProvider)
+            .fetchPrefill(customerId: customerId);
+        bankAccounts = paymentPrefill.bankAccounts;
+      } on ApiException {
+        // Pay-now may lack bank accounts until payment prefill works.
+      }
 
-      final prefill = results[0] as SalesPrefill;
-      final paymentPrefill = results[1] as PaymentPrefill;
-      final bankAccounts = paymentPrefill.bankAccounts;
-      final bankAccountId = bankAccountForPaymentMethod(
+      var bankAccountId = bankAccountForPaymentMethod(
         state.paymentMethod,
         bankAccounts,
       );
+      if (bankAccountId == null && bankAccounts.isNotEmpty) {
+        bankAccountId = bankAccounts.first.id;
+      }
+
       final saleTiming =
           prefill.defaults.onCredit ? SaleTiming.payLater : SaleTiming.payNow;
 
@@ -175,6 +187,8 @@ class PosController extends StateNotifier<PosState> {
       );
     } on ApiException catch (e) {
       state = state.copyWith(loading: false, errorMessage: e.message);
+    } catch (e) {
+      state = state.copyWith(loading: false, errorMessage: '$e');
     }
   }
 

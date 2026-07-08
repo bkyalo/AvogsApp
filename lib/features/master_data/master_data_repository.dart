@@ -73,13 +73,55 @@ final storesProvider = FutureProvider<List<StoreInfo>>((ref) async {
   return ref.watch(masterDataRepositoryProvider).fetchStores();
 });
 
-final customersProvider = FutureProvider<List<CustomerInfo>>((ref) async {
-  return ref.watch(masterDataRepositoryProvider).fetchCustomers();
-});
+class CustomersNotifier extends AsyncNotifier<List<CustomerInfo>> {
+  @override
+  Future<List<CustomerInfo>> build() async {
+    ref.keepAlive();
+    return ref.read(masterDataRepositoryProvider).fetchCustomers();
+  }
 
-final suppliersProvider = FutureProvider<List<SupplierInfo>>((ref) async {
-  return ref.watch(masterDataRepositoryProvider).fetchSuppliers();
-});
+  Future<void> refresh() async {
+    final previous = state.valueOrNull;
+    if (previous == null) {
+      state = const AsyncLoading();
+    } else {
+      state = AsyncData(previous);
+    }
+    state = await AsyncValue.guard(
+      () => ref.read(masterDataRepositoryProvider).fetchCustomers(),
+    );
+  }
+}
+
+final customersProvider =
+    AsyncNotifierProvider<CustomersNotifier, List<CustomerInfo>>(
+  CustomersNotifier.new,
+);
+
+class SuppliersNotifier extends AsyncNotifier<List<SupplierInfo>> {
+  @override
+  Future<List<SupplierInfo>> build() async {
+    ref.keepAlive();
+    return ref.read(masterDataRepositoryProvider).fetchSuppliers();
+  }
+
+  Future<void> refresh() async {
+    final previous = state.valueOrNull;
+    if (previous == null) {
+      state = const AsyncLoading();
+    } else {
+      state = AsyncData(previous);
+    }
+    state = await AsyncValue.guard(
+      () => ref.read(masterDataRepositoryProvider).fetchSuppliers(),
+    );
+  }
+}
+
+final suppliersProvider =
+    AsyncNotifierProvider<SuppliersNotifier, List<SupplierInfo>>(
+  SuppliersNotifier.new,
+);
 
 final paymentTermsProvider = FutureProvider<List<PaymentTermsOption>>((ref) async {
   return ref.watch(masterDataRepositoryProvider).fetchPaymentTerms();
@@ -90,11 +132,9 @@ class MasterDataSyncNotifier extends Notifier<void> {
   void build() {}
 
   Future<void> refreshCustomersAndSuppliers() async {
-    ref.invalidate(customersProvider);
-    ref.invalidate(suppliersProvider);
     await Future.wait([
-      ref.read(customersProvider.future),
-      ref.read(suppliersProvider.future),
+      ref.read(customersProvider.notifier).refresh(),
+      ref.read(suppliersProvider.notifier).refresh(),
     ]);
   }
 }

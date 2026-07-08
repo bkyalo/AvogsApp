@@ -24,20 +24,28 @@ class PaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  var _initialized = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitial());
+  }
+
+  Future<void> _loadInitial() async {
+    try {
+      final customers = await ref.read(customersProvider.future);
+      final customerId =
+          widget.initialCustomerId ?? customers.cashSalesCustomerId;
+      await ref.read(paymentControllerProvider.notifier).load(
+            customerId: customerId,
+            allocateTo: widget.allocateTo,
+          );
+    } catch (e) {
+      ref.read(paymentControllerProvider.notifier).setLoadError('$e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      _initialized = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(paymentControllerProvider.notifier).load(
-              customerId: widget.initialCustomerId ?? 1,
-              allocateTo: widget.allocateTo,
-            );
-      });
-    }
-
     final state = ref.watch(paymentControllerProvider);
     final controller = ref.read(paymentControllerProvider.notifier);
     final customers = ref.watch(customersProvider);
@@ -51,7 +59,23 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     final prefill = state.prefill;
     if (prefill == null) {
       return Center(
-        child: Text(state.errorMessage ?? 'Failed to load payment form'),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                state.errorMessage ?? 'Failed to load payment form',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _loadInitial,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 

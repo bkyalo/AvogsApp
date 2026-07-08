@@ -90,20 +90,31 @@ class PaymentController extends StateNotifier<PaymentFormState> {
         amount = prefill.totalOutstanding;
       }
 
+      var bankAccountId = prefill.defaults.bankAccount;
+      if (bankAccountId <= 0 && prefill.bankAccounts.isNotEmpty) {
+        bankAccountId = prefill.bankAccounts.first.id;
+      }
+
       state = PaymentFormState(
         loading: false,
         prefill: prefill,
         customerId: customerId,
         amount: amount,
-        selectedBankAccountId: prefill.defaults.bankAccount,
+        selectedBankAccountId: bankAccountId > 0 ? bankAccountId : null,
         allocations: allocations,
       );
     } on ApiException catch (e) {
       state = state.copyWith(loading: false, errorMessage: e.message);
+    } catch (e) {
+      state = state.copyWith(loading: false, errorMessage: '$e');
     }
   }
 
   void setCustomer(int customerId) => load(customerId: customerId);
+
+  void setLoadError(String message) {
+    state = state.copyWith(loading: false, errorMessage: message);
+  }
 
   void setAmount(double amount) => state = state.copyWith(amount: amount);
 

@@ -191,6 +191,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 void _refreshShellTab(WidgetRef ref, int index) {
   switch (index) {
     case 0:
+      ref.read(masterDataSyncProvider.notifier).refreshCustomersAndSuppliers();
       ref.invalidate(dashboardProvider);
       break;
     case 1:
