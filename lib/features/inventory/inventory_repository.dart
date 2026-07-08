@@ -1,97 +1,89 @@
 import 'package:avogs/core/api/api_client.dart';
 import 'package:avogs/core/config/app_config_provider.dart';
+import 'package:avogs/features/master_data/master_data_repository.dart';
+import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
-  return InventoryRepository(
-    api: ref.watch(apiClientProvider),
-    storeCode: ref.watch(appConfigProvider).selectedStoreCode,
-  );
-});
 
 class InventoryBalanceItem {
   const InventoryBalanceItem({
     required this.stockId,
     required this.name,
     required this.available,
+    this.units = '',
+    this.categoryName = 'Other',
   });
 
   factory InventoryBalanceItem.fromJson(Map<String, dynamic> json) {
     final stockId = json['stock_id'] as String? ?? '';
     return InventoryBalanceItem(
       stockId: stockId,
-      name: _friendlyName(stockId),
-      available: _asInt(json['available']),
+      name: json['description'] as String? ??
+          json['name'] as String? ??
+          stockId,
+      available: _asDouble(json['qoh']),
+      units: json['units'] as String? ?? '',
+      categoryName: (json['category_name'] as String?)?.trim().isNotEmpty == true
+          ? json['category_name'] as String
+          : 'Other',
     );
   }
 
   final String stockId;
   final String name;
-  final int available;
+  final double available;
+  final String units;
+  final String categoryName;
+
+  bool matchesQuery(String query) {
+    if (query.isEmpty) return true;
+    final q = query.toLowerCase();
+    return name.toLowerCase().contains(q) ||
+        stockId.toLowerCase().contains(q) ||
+        categoryName.toLowerCase().contains(q);
+  }
 }
 
 class InventorySnapshot {
   const InventorySnapshot({
-    required this.store,
+    required this.location,
     required this.date,
-    required this.shift,
-    required this.avocadoPool,
     required this.items,
   });
 
-  factory InventorySnapshot.fromJson(Map<String, dynamic> json) {
-    return InventorySnapshot(
-      store: json['store'] as String? ?? '',
-      date: json['date'] as String? ?? '',
-      shift: json['shift'] as String? ?? 'morning',
-      avocadoPool: _asInt(json['avocado_pool']),
-      items: (json['items'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .map(InventoryBalanceItem.fromJson)
-          .toList(),
-    );
-  }
-
-  final String store;
+  final String location;
   final String date;
-  final String shift;
-  final int avocadoPool;
   final List<InventoryBalanceItem> items;
 
-  List<InventoryCategory> get categories {
-    final beverages = items.where((i) => i.stockId.startsWith('BVG-')).toList();
-    final honey = items.where((i) => i.stockId.startsWith('HNY-')).toList();
+  List<InventoryCategory> categoriesForQuery(String query) {
+    final filtered = query.isEmpty
+        ? items
+        : items.where((i) => i.matchesQuery(query)).toList();
+    if (filtered.isEmpty) return [];
 
-    return [
-      InventoryCategory(
-        title: 'Avocados',
-        icon: Icons.eco_outlined,
-        unit: 'pcs',
-        items: [
-          InventoryBalanceItem(
-            stockId: 'AVO-POOL',
-            name: 'Available pool (all sizes)',
-            available: avocadoPool,
+    final grouped = <String, List<InventoryBalanceItem>>{};
+    for (final item in filtered) {
+      grouped.putIfAbsent(item.categoryName, () => []).add(item);
+    }
+
+    final categories = grouped.entries
+        .map(
+          (e) => InventoryCategory(
+            title: e.key,
+            icon: _iconForCategory(e.key),
+            unit: _unitLabel(e.value),
+            items: e.value
+              ..sort((a, b) => a.name.compareTo(b.name)),
           ),
-        ],
-      ),
-      if (beverages.isNotEmpty)
-        InventoryCategory(
-          title: 'Beverages',
-          icon: Icons.local_drink_outlined,
-          unit: 'btl',
-          items: beverages,
-        ),
-      if (honey.isNotEmpty)
-        InventoryCategory(
-          title: 'Honey',
-          icon: Icons.hive_outlined,
-          unit: 'jars',
-          items: honey,
-        ),
-    ];
+        )
+        .toList()
+      ..sort((a, b) => a.title.compareTo(b.title));
+
+    return categories;
   }
+
+  double get totalOnHand =>
+      items.fold(0.0, (sum, item) => sum + item.available);
 }
 
 class InventoryCategory {
@@ -107,45 +99,108 @@ class InventoryCategory {
   final String unit;
   final List<InventoryBalanceItem> items;
 
-  int get total => items.fold(0, (sum, item) => sum + item.available);
+  double get total =>
+      items.fold(0.0, (sum, item) => sum + item.available);
 }
 
-int _asInt(dynamic value) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  return int.tryParse('$value') ?? 0;
+double _asDouble(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value') ?? 0;
 }
 
-String _friendlyName(String stockId) {
-  return switch (stockId) {
-    'BVG-JUICE' => 'Juice',
-    'BVG-SMOOTHIE' => 'Smoothie',
-    'BVG-GINGER' => 'Ginger',
-    'HNY-250G' => 'Honey 250g',
-    'HNY-450G' => 'Honey 450g',
-    'HNY-900G' => 'Honey 900g',
-    _ => stockId,
-  };
+IconData _iconForCategory(String category) {
+  final lower = category.toLowerCase();
+  if (lower.contains('avocado') || lower.contains('produce')) {
+    return Icons.eco_outlined;
+  }
+  if (lower.contains('beverage') || lower.contains('drink')) {
+    return Icons.local_drink_outlined;
+  }
+  if (lower.contains('honey')) return Icons.hive_outlined;
+  return Icons.inventory_2_outlined;
+}
+
+String _unitLabel(List<InventoryBalanceItem> items) {
+  final units = items.map((i) => i.units).where((u) => u.isNotEmpty).toSet();
+  if (units.length == 1) return units.first;
+  return 'units';
 }
 
 class InventoryRepository {
-  InventoryRepository({required ApiClient api, required String? storeCode})
-      : _api = api,
-        _storeCode = storeCode;
+  InventoryRepository(this._api, this._adjustments);
 
   final ApiClient _api;
-  final String? _storeCode;
+  final AdjustmentRepository _adjustments;
 
-  Future<InventorySnapshot> fetchBalances() async {
-    final query = <String, dynamic>{};
-    if (_storeCode != null && _storeCode!.isNotEmpty) {
-      query['store'] = _storeCode;
-    }
-    final data = await _api.getJson('/inventory', queryParameters: query);
-    return InventorySnapshot.fromJson(data);
+  /// FA stock on hand for the selected location (`GET /items?location=`).
+  Future<InventorySnapshot> fetchBalances({required String location}) async {
+    try {
+      final data = await _api.getJsonList(
+        '/items',
+        queryParameters: {'location': location},
+      );
+      final items = data
+          .whereType<Map<String, dynamic>>()
+          .map(InventoryBalanceItem.fromJson)
+          .toList();
+      if (items.isNotEmpty) {
+        return _snapshot(location, items);
+      }
+    } catch (_) {}
+
+    // Fallback: adjustment prefill catalog carries QOH for all stock items.
+    final prefill = await _adjustments.fetchPrefill(location: location);
+    final items = prefill.catalog
+        .map(
+          (item) => InventoryBalanceItem(
+            stockId: item.stockId,
+            name: item.description,
+            available: item.qoh ?? 0,
+            units: item.units,
+          ),
+        )
+        .toList();
+
+    return _snapshot(location, items);
+  }
+
+  InventorySnapshot _snapshot(
+    String location,
+    List<InventoryBalanceItem> items,
+  ) {
+    items.sort((a, b) => a.name.compareTo(b.name));
+    return InventorySnapshot(
+      location: location,
+      date: DateTime.now().toIso8601String().split('T').first,
+      items: items,
+    );
   }
 }
 
 final inventoryBalancesProvider = FutureProvider<InventorySnapshot>((ref) async {
-  return ref.watch(inventoryRepositoryProvider).fetchBalances();
+  await ref.read(appConfigProvider.notifier).ready;
+  var location = ref.read(appConfigProvider).selectedStoreCode;
+
+  if (location == null || location.isEmpty) {
+    try {
+      final stores = await ref.read(storesProvider.future);
+      if (stores.isNotEmpty) {
+        location = stores.first.code;
+      }
+    } catch (_) {}
+  }
+
+  if (location == null || location.isEmpty) {
+    throw Exception('Select a store in Settings to view stock balances');
+  }
+
+  return ref.read(inventoryRepositoryProvider).fetchBalances(location: location);
+});
+
+final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
+  return InventoryRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(adjustmentRepositoryProvider),
+  );
 });

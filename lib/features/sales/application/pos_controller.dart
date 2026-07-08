@@ -293,7 +293,14 @@ class PosController extends StateNotifier<PosState> {
         'location': prefill.defaults.location,
         'document_date': prefill.defaults.documentDate,
         'reference': reference,
-        'lines': state.lines.map((l) => l.toSalesJson()).toList(),
+        'lines': state.lines
+            .map(
+              (l) => {
+                ...l.toSalesJson(),
+                'description': l.description,
+              },
+            )
+            .toList(),
       };
 
       if (state.saleTiming == SaleTiming.payLater) {

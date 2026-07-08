@@ -4,12 +4,14 @@ import 'package:avogs/core/sync/sync_service.dart';
 import 'package:avogs/core/theme/app_colors.dart';
 import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/features/history/application/history_provider.dart';
+import 'package:avogs/features/inventory/presentation/adjustment_receipt_screen.dart';
 import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/payments/presentation/payment_receipt_screen.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:avogs/features/sales/presentation/sales_receipt_screen.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
+import 'package:avogs/shared/utils/receipt_line_parser.dart';
 import 'package:avogs/shared/widgets/sync_status_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,7 +68,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 if (_query.isEmpty) return true;
                 return e.reference.toLowerCase().contains(_query) ||
                     e.subtitle.toLowerCase().contains(_query) ||
-                    e.typeLabel.toLowerCase().contains(_query);
+                    e.typeLabel.toLowerCase().contains(_query) ||
+                    (e.itemSummary?.toLowerCase().contains(_query) ?? false);
               }).toList();
 
               if (filtered.isEmpty) {
@@ -165,6 +168,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       return;
     }
 
+    if (entry.type == SyncItemType.inventoryAdjustment) {
+      if (entry.payloadJson != null) {
+        try {
+          final payload = Map<String, dynamic>.from(
+            jsonDecode(entry.payloadJson!) as Map,
+          );
+          if (!context.mounted) return;
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => AdjustmentReceiptScreen.fromPayload(
+                payload,
+                queuedOffline: entry.status != 'synced',
+              ),
+            ),
+          );
+        } catch (_) {}
+      }
+      return;
+    }
+
     if (entry.type != SyncItemType.salesInvoice) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${entry.typeLabel} detail coming soon')),
@@ -174,78 +198,103 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     if (entry.source == HistoryEntrySource.api && entry.serverId != null) {
       try {
-        final sale = (await ref.read(shadowSalesProvider.future))
-            .firstWhere((s) => s.invoiceNo == entry.serverId);
-        if (!context.mounted) return;
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => SalesReceiptScreen(
-              reference: sale.reference,
-              customerName: sale.customer,
-              storeCode: '',
-              documentDate: sale.time.split('T').first,
-              lines: sale.lines
-                  .map(
-                    (l) => ReceiptLine(
-                      description: l.name,
-                      quantity: l.qty.toDouble(),
-                      unitPrice: l.unitPrice,
-                      total: (l.qty * l.unitPrice) - l.discount,
-                    ),
-                  )
-                  .toList(),
-              total: sale.total,
-              paymentMethod: sale.paymentMethod,
+        final shadowSales = await ref.read(shadowSalesProvider.future);
+        final sale = shadowSales
+            .where((s) => s.invoiceNo == entry.serverId)
+            .firstOrNull;
+        if (sale != null) {
+          if (!context.mounted) return;
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => SalesReceiptScreen(
+                reference: sale.reference,
+                customerName: sale.customer,
+                storeCode: '',
+                documentDate: sale.time.split('T').first,
+                lines: sale.lines
+                    .map(
+                      (l) => ReceiptLine(
+                        description:
+                            l.name.isNotEmpty ? l.name : l.stockId,
+                        quantity: l.qty.toDouble(),
+                        unitPrice: l.unitPrice,
+                        total: (l.qty * l.unitPrice) - l.discount,
+                      ),
+                    )
+                    .toList(),
+                total: sale.total,
+                paymentMethod: sale.paymentMethod,
+              ),
             ),
-          ),
-        );
-        return;
+          );
+          return;
+        }
+
+        final invoice = await ref
+            .read(salesRepositoryProvider)
+            .fetchInvoice(entry.serverId!);
+        final lines = salesReceiptLinesFromInvoice(invoice);
+        if (lines.isNotEmpty && context.mounted) {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => SalesReceiptScreen(
+                reference: invoice['reference'] as String? ?? entry.reference,
+                customerName: invoice['customer'] as String? ??
+                    invoice['deliver_to'] as String? ??
+                    entry.subtitle,
+                storeCode: invoice['location'] as String? ?? '',
+                documentDate: (invoice['document_date'] as String?) ??
+                    entry.timestamp.toString().split(' ').first,
+                lines: lines,
+                total: (invoice['total'] as num?)?.toDouble() ??
+                    entry.total ??
+                    lines.fold(0.0, (s, l) => s + l.total),
+                paymentMethod: invoice['payment_method'] as String?,
+              ),
+            ),
+          );
+          return;
+        }
       } catch (_) {}
     }
 
     if (entry.payloadJson != null) {
-      final payload = entry.payloadJson!;
-      final lines = _linesFromPayload(payload);
+      final payload = Map<String, dynamic>.from(
+        jsonDecode(entry.payloadJson!) as Map,
+      );
+      final lines = salesReceiptLinesFromPayload(payload);
       if (lines.isEmpty) return;
+
+      String customerName = entry.subtitle;
+      if (entry.customerId != null) {
+        try {
+          final customers = await ref.read(customersProvider.future);
+          customerName = customers
+                  .where((c) => c.id == entry.customerId)
+                  .map((c) => c.name)
+                  .firstOrNull ??
+              customerName;
+        } catch (_) {}
+      }
+
       if (!context.mounted) return;
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
           builder: (_) => SalesReceiptScreen(
             reference: entry.reference,
-            customerName: entry.subtitle,
-            storeCode: '',
-            documentDate: DateTime.now().toString().split(' ').first,
+            customerName: customerName,
+            storeCode: payload['location'] as String? ?? '',
+            documentDate: payload['document_date'] as String? ??
+                entry.timestamp.toString().split(' ').first,
             lines: lines,
             total: entry.total ?? lines.fold(0.0, (s, l) => s + l.total),
             queuedOffline: entry.status != 'synced',
           ),
         ),
       );
-    }
-  }
-
-  List<ReceiptLine> _linesFromPayload(String payloadJson) {
-    try {
-      final payload = Map<String, dynamic>.from(
-        jsonDecode(payloadJson) as Map,
-      );
-      final lines = payload['lines'] as List<dynamic>? ?? [];
-      return lines.whereType<Map<String, dynamic>>().map((l) {
-        final qty = (l['quantity'] as num?)?.toDouble() ?? 0;
-        final price = (l['unit_price'] as num?)?.toDouble() ?? 0;
-        final discount = (l['discount_percent'] as num?)?.toDouble() ?? 0;
-        final total = qty * price * (1 - discount / 100);
-        return ReceiptLine(
-          description: l['stock_id'] as String? ?? 'Item',
-          quantity: qty,
-          unitPrice: price,
-          total: total,
-        );
-      }).toList();
-    } catch (_) {
-      return [];
     }
   }
 }
@@ -275,7 +324,11 @@ class _HistoryTile extends StatelessWidget {
         ),
         title: Text(entry.reference),
         subtitle: Text(
-          '${entry.typeLabel} · ${entry.subtitle}\n${formatDate(entry.timestamp)}',
+          [
+            '${entry.typeLabel} · ${entry.subtitle}',
+            if (entry.itemSummary != null) entry.itemSummary!,
+            formatDate(entry.timestamp),
+          ].join('\n'),
         ),
         isThreeLine: true,
         trailing: Column(

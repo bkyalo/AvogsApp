@@ -1,7 +1,7 @@
 import 'package:avogs/core/theme/app_colors.dart';
 import 'package:avogs/features/inventory/application/adjustment_controller.dart';
+import 'package:avogs/features/inventory/presentation/adjustment_receipt_screen.dart';
 import 'package:avogs/shared/widgets/sync_status_banner.dart';
-import 'package:avogs/shared/widgets/transaction_success_screen.dart';
 import 'package:avogs/shared/widgets/transaction_form_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,9 +114,21 @@ class AdjustmentScreen extends ConsumerWidget {
           enabled: state.lines.isNotEmpty,
           submitLabel: 'Save adjustment',
           onSubmit: () async {
-            final details = await controller.submit();
-            if (details != null && context.mounted) {
-              await showTransactionSuccess(context, details);
+            final result = await controller.submit();
+            if (result != null && context.mounted) {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => AdjustmentReceiptScreen(
+                    reference: result.reference,
+                    location: result.location,
+                    documentDate: result.documentDate,
+                    memo: result.memo,
+                    lines: result.lines,
+                    queuedOffline: result.queuedOffline,
+                  ),
+                ),
+              );
             }
           },
         ),

@@ -2,6 +2,7 @@ import 'package:avogs/core/routing/app_routes.dart';
 import 'package:avogs/core/theme/app_colors.dart';
 import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
+import 'package:avogs/shared/widgets/receipt_line_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -116,16 +117,7 @@ class _SalesReceiptScreenState extends ConsumerState<SalesReceiptScreen> {
                       ),
                     ),
                   const Divider(height: 24),
-                  for (final line in widget.lines)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Expanded(child: Text(line.description)),
-                          Text(formatMoney(line.total)),
-                        ],
-                      ),
-                    ),
+                  for (final line in widget.lines) ReceiptLineRow(line: line),
                   const Divider(height: 24),
                   Row(
                     children: [

@@ -4,6 +4,7 @@ import 'package:avogs/core/database/app_database.dart';
 import 'package:avogs/core/sync/sync_service.dart';
 import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
+import 'package:avogs/shared/utils/receipt_line_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum HistoryEntrySource { local, api }
@@ -21,6 +22,7 @@ class HistoryEntry {
     this.serverId,
     this.payloadJson,
     this.customerId,
+    this.itemSummary,
   });
 
   final String id;
@@ -34,6 +36,7 @@ class HistoryEntry {
   final int? serverId;
   final String? payloadJson;
   final int? customerId;
+  final String? itemSummary;
 
   String get typeLabel => switch (type) {
         SyncItemType.salesInvoice => 'Sale',
@@ -91,6 +94,7 @@ HistoryEntry _entryFromSyncItem(
   final customerId = _parseInt(payload['customer_id']);
   final subtitle = _subtitleForPayload(type, payload, customerNames);
   final total = _totalFromPayload(type, payload);
+  final itemSummary = itemSummaryFromPayload(payload);
 
   return HistoryEntry(
     id: item.id,
@@ -104,10 +108,15 @@ HistoryEntry _entryFromSyncItem(
     serverId: item.serverId,
     payloadJson: item.payloadJson,
     customerId: customerId,
+    itemSummary: itemSummary,
   );
 }
 
 HistoryEntry _entryFromShadowSale(ShadowSale sale) {
+  final itemSummary = formatItemSummary(
+    sale.lines.map((l) => l.name.isNotEmpty ? l.name : l.stockId),
+  );
+
   return HistoryEntry(
     id: 'shadow-${sale.invoiceNo}',
     type: SyncItemType.salesInvoice,
@@ -118,6 +127,7 @@ HistoryEntry _entryFromShadowSale(ShadowSale sale) {
     status: 'synced',
     source: HistoryEntrySource.api,
     serverId: sale.invoiceNo,
+    itemSummary: itemSummary,
   );
 }
 

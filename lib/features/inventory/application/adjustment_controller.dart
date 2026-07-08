@@ -7,7 +7,26 @@ import 'package:avogs/features/inventory/inventory_repository.dart';
 import 'package:avogs/features/master_data/master_data_repository.dart';
 import 'package:avogs/features/transactions/transaction_repositories.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
+import 'package:avogs/shared/utils/receipt_line_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class AdjustmentSubmitResult {
+  const AdjustmentSubmitResult({
+    required this.reference,
+    required this.location,
+    required this.documentDate,
+    required this.lines,
+    this.memo,
+    this.queuedOffline = false,
+  });
+
+  final String reference;
+  final String location;
+  final String documentDate;
+  final List<AdjustmentReceiptLine> lines;
+  final String? memo;
+  final bool queuedOffline;
+}
 
 class AdjustmentFormState {
   const AdjustmentFormState({
@@ -119,7 +138,7 @@ class AdjustmentController extends StateNotifier<AdjustmentFormState> {
     state = state.copyWith(lines: [...state.lines]..removeAt(index));
   }
 
-  Future<TransactionSuccessDetails?> submit() async {
+  Future<AdjustmentSubmitResult?> submit() async {
     final prefill = state.prefill;
     if (prefill == null || state.lines.isEmpty) {
       state = state.copyWith(errorMessage: 'Add at least one line');
@@ -134,15 +153,22 @@ class AdjustmentController extends StateNotifier<AdjustmentFormState> {
         'document_date': prefill.defaults.documentDate,
         'reference': prefill.defaults.reference,
         if (memo.isNotEmpty) 'memo': memo,
-        'lines': state.lines.map((l) => l.toAdjustmentJson()).toList(),
+        'lines': state.lines
+            .map(
+              (l) => {
+                ...l.toAdjustmentJson(),
+                'description': l.description,
+              },
+            )
+            .toList(),
       };
 
-      final result = await _ref.read(transactionSubmitterProvider).submit(
+      final submitResult = await _ref.read(transactionSubmitterProvider).submit(
             type: SyncItemType.inventoryAdjustment,
             payload: payload,
           );
 
-      if (!result.isSuccess) {
+      if (!submitResult.isSuccess) {
         state = state.copyWith(
           submitting: false,
           errorMessage: 'Submit failed — no confirmation from server',
@@ -150,16 +176,21 @@ class AdjustmentController extends StateNotifier<AdjustmentFormState> {
         return null;
       }
 
-      final lineCount = state.lines.length;
-      final details = TransactionSuccessDetails(
-        title: result.queuedOffline ? 'Adjustment queued' : 'Adjustment saved',
-        reference: result.reference ?? prefill.defaults.reference,
-        subtitle: prefill.defaults.location,
-        detailLines: [
-          if (memo.isNotEmpty) memo,
-          '$lineCount line(s)',
-        ],
-        queuedOffline: result.queuedOffline,
+      final receipt = AdjustmentSubmitResult(
+        reference: submitResult.reference ?? prefill.defaults.reference,
+        location: prefill.defaults.location,
+        documentDate: prefill.defaults.documentDate,
+        memo: memo.isEmpty ? null : memo,
+        lines: state.lines
+            .map(
+              (l) => AdjustmentReceiptLine(
+                description: l.description,
+                quantity: l.quantity,
+                standardCost: l.standardCost,
+              ),
+            )
+            .toList(),
+        queuedOffline: submitResult.queuedOffline,
       );
 
       // Refresh stock balances and history to reflect the adjustment.
@@ -168,7 +199,7 @@ class AdjustmentController extends StateNotifier<AdjustmentFormState> {
 
       await load(location: prefill.defaults.location);
       state = state.copyWith(memo: '', submitting: false);
-      return details;
+      return receipt;
     } on ApiException catch (e) {
       state = state.copyWith(submitting: false, errorMessage: e.message);
       return null;
