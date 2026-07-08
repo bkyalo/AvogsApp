@@ -7,6 +7,57 @@ extension PaymentMethodX on PaymentMethod {
       };
 }
 
+/// Whether a direct sale is settled immediately or posted to AR.
+enum SaleTiming { payNow, payLater }
+
+extension SaleTimingX on SaleTiming {
+  String get label => switch (this) {
+        SaleTiming.payNow => 'Pay now',
+        SaleTiming.payLater => 'Pay later',
+      };
+}
+
+class PaymentTermsOption {
+  const PaymentTermsOption({
+    required this.id,
+    required this.name,
+    required this.daysDue,
+    required this.cashSale,
+    required this.onCredit,
+  });
+
+  factory PaymentTermsOption.fromJson(Map<String, dynamic> json) {
+    return PaymentTermsOption(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      daysDue: json['days_due'] as int? ?? 0,
+      cashSale: json['cash_sale'] as bool? ?? false,
+      onCredit: json['on_credit'] as bool? ?? false,
+    );
+  }
+
+  final int id;
+  final String name;
+  final int daysDue;
+  final bool cashSale;
+  final bool onCredit;
+}
+
+/// Picks a bank account id that best matches Cash vs M-Pesa from prefill.
+int? bankAccountForPaymentMethod(
+  PaymentMethod method,
+  List<BankAccount> accounts,
+) {
+  if (accounts.isEmpty) return null;
+  final pattern = method == PaymentMethod.cash
+      ? RegExp(r'cash', caseSensitive: false)
+      : RegExp(r'm\s*-?\s*pesa', caseSensitive: false);
+  for (final account in accounts) {
+    if (pattern.hasMatch(account.name)) return account.id;
+  }
+  return accounts.first.id;
+}
+
 class TransactionLine {
   const TransactionLine({
     required this.stockId,
@@ -241,6 +292,7 @@ class OpenDocument {
     required this.amount,
     required this.allocated,
     required this.balance,
+    this.dueDate,
   });
 
   factory OpenDocument.fromJson(Map<String, dynamic> json) {
@@ -252,6 +304,7 @@ class OpenDocument {
       amount: (json['amount'] as num).toDouble(),
       allocated: (json['allocated'] as num).toDouble(),
       balance: (json['balance'] as num).toDouble(),
+      dueDate: json['due_date'] as String?,
     );
   }
 
@@ -262,6 +315,68 @@ class OpenDocument {
   final double amount;
   final double allocated;
   final double balance;
+  final String? dueDate;
+}
+
+class PendingInvoicesResponse {
+  const PendingInvoicesResponse({
+    required this.customerId,
+    required this.pendingInvoices,
+    required this.invoiceCount,
+    required this.totalOutstanding,
+  });
+
+  factory PendingInvoicesResponse.fromJson(Map<String, dynamic> json) {
+    return PendingInvoicesResponse(
+      customerId: json['customer_id'] as int,
+      pendingInvoices: (json['pending_invoices'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(OpenDocument.fromJson)
+          .toList(),
+      invoiceCount: json['invoice_count'] as int? ?? 0,
+      totalOutstanding: (json['total_outstanding'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  final int customerId;
+  final List<OpenDocument> pendingInvoices;
+  final int invoiceCount;
+  final double totalOutstanding;
+}
+
+class PaymentDetail {
+  const PaymentDetail({
+    required this.paymentNo,
+    required this.reference,
+    required this.amount,
+    this.documentDate,
+    this.memo,
+    this.allocations = const [],
+  });
+
+  factory PaymentDetail.fromJson(Map<String, dynamic> json) {
+    return PaymentDetail(
+      paymentNo: json['payment_no'] as int? ?? json['trans_no'] as int? ?? 0,
+      reference: json['reference'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      documentDate: json['document_date'] as String?,
+      memo: json['memo'] as String?,
+      allocations: (json['allocations'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (a) =>
+                '${a['trans_no']}: ${(a['allocated'] as num?)?.toDouble() ?? a['amount']}',
+          )
+          .toList(),
+    );
+  }
+
+  final int paymentNo;
+  final String reference;
+  final double amount;
+  final String? documentDate;
+  final String? memo;
+  final List<String> allocations;
 }
 
 class SubmitResult {

@@ -152,7 +152,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.paymentsNew,
-            builder: (_, __) => const PaymentScreen(),
+            builder: (context, state) {
+              final qp = state.uri.queryParameters;
+              final customerId = int.tryParse(qp['customer_id'] ?? '');
+              final allocateTo = int.tryParse(qp['allocate_to'] ?? '');
+              return PaymentScreen(
+                initialCustomerId: customerId,
+                allocateTo: allocateTo,
+              );
+            },
           ),
           GoRoute(
             path: AppRoutes.purchasingNew,

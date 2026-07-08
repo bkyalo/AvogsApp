@@ -1,8 +1,10 @@
+import 'package:avogs/core/routing/app_routes.dart';
 import 'package:avogs/core/theme/app_colors.dart';
 import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class SalesReceiptScreen extends ConsumerStatefulWidget {
   const SalesReceiptScreen({
@@ -14,6 +16,10 @@ class SalesReceiptScreen extends ConsumerStatefulWidget {
     required this.lines,
     required this.total,
     this.paymentMethod,
+    this.paymentStatus,
+    this.balanceDue,
+    this.invoiceNo,
+    this.customerId,
     this.queuedOffline = false,
   });
 
@@ -24,6 +30,10 @@ class SalesReceiptScreen extends ConsumerStatefulWidget {
   final List<ReceiptLine> lines;
   final double total;
   final String? paymentMethod;
+  final String? paymentStatus;
+  final double? balanceDue;
+  final int? invoiceNo;
+  final int? customerId;
   final bool queuedOffline;
 
   @override
@@ -85,6 +95,26 @@ class _SalesReceiptScreenState extends ConsumerState<SalesReceiptScreen> {
                   Text('Store: ${widget.storeCode} · ${widget.documentDate}'),
                   if (widget.paymentMethod != null)
                     Text('Payment: ${widget.paymentMethod}'),
+                  if (widget.paymentStatus != null)
+                    Text(
+                      widget.paymentStatus == 'pending'
+                          ? 'Status: On account (unpaid)'
+                          : 'Status: ${widget.paymentStatus}',
+                      style: TextStyle(
+                        color: widget.paymentStatus == 'pending'
+                            ? AppColors.honey
+                            : AppColors.primaryGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (widget.balanceDue != null && widget.balanceDue! > 0)
+                    Text(
+                      'Balance due: ${formatMoney(widget.balanceDue!)}',
+                      style: const TextStyle(
+                        color: AppColors.honey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   const Divider(height: 24),
                   for (final line in widget.lines)
                     Padding(
@@ -118,6 +148,21 @@ class _SalesReceiptScreenState extends ConsumerState<SalesReceiptScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (widget.paymentStatus == 'pending' &&
+              widget.customerId != null &&
+              widget.invoiceNo != null) ...[
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                context.go(
+                  '${AppRoutes.paymentsNew}?customer_id=${widget.customerId}&allocate_to=${widget.invoiceNo}',
+                );
+              },
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Collect payment'),
+            ),
+            const SizedBox(height: 8),
+          ],
           FilledButton.icon(
             onPressed: _sharing ? null : () => _share(context),
             icon: const Icon(Icons.share),

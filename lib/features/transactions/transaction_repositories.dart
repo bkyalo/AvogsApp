@@ -1,5 +1,4 @@
 import 'package:avogs/core/api/api_client.dart';
-import 'package:avogs/core/api/api_exception.dart';
 import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +10,7 @@ class SalesPrefill {
   const SalesPrefill({
     required this.defaults,
     required this.catalog,
+    this.paymentTermsOptions = const [],
   });
 
   factory SalesPrefill.fromJson(Map<String, dynamic> json) {
@@ -20,11 +20,17 @@ class SalesPrefill {
           .whereType<Map<String, dynamic>>()
           .map(CatalogItem.fromJson)
           .toList(),
+      paymentTermsOptions: (json['payment_terms_options'] as List<dynamic>? ??
+              [])
+          .whereType<Map<String, dynamic>>()
+          .map(PaymentTermsOption.fromJson)
+          .toList(),
     );
   }
 
   final SalesDefaults defaults;
   final List<CatalogItem> catalog;
+  final List<PaymentTermsOption> paymentTermsOptions;
 }
 
 class SalesDefaults {
@@ -37,6 +43,7 @@ class SalesDefaults {
     required this.currency,
     this.dueDate,
     this.deliverTo,
+    this.onCredit = false,
   });
 
   factory SalesDefaults.fromJson(Map<String, dynamic> json) {
@@ -49,6 +56,7 @@ class SalesDefaults {
       currency: json['currency'] as String? ?? 'KES',
       dueDate: json['due_date'] as String?,
       deliverTo: json['deliver_to'] as String?,
+      onCredit: json['on_credit'] as bool? ?? false,
     );
   }
 
@@ -60,6 +68,7 @@ class SalesDefaults {
   final String currency;
   final String? dueDate;
   final String? deliverTo;
+  final bool onCredit;
 }
 
 class SalesRepository {
@@ -84,6 +93,16 @@ class SalesRepository {
   Future<Map<String, dynamic>> fetchInvoice(int id) async {
     return _api.getJson('/sales/invoices/$id');
   }
+
+  Future<PendingInvoicesResponse> fetchPendingInvoices({
+    required int customerId,
+  }) async {
+    final data = await _api.getJson(
+      '/sales/invoices/pending',
+      queryParameters: {'customer_id': customerId},
+    );
+    return PendingInvoicesResponse.fromJson(data);
+  }
 }
 
 class PaymentPrefill {
@@ -91,6 +110,9 @@ class PaymentPrefill {
     required this.defaults,
     required this.openDocuments,
     required this.bankAccounts,
+    this.pendingInvoices = const [],
+    this.totalOutstanding = 0,
+    this.selectedDocument,
   });
 
   factory PaymentPrefill.fromJson(Map<String, dynamic> json) {
@@ -104,12 +126,29 @@ class PaymentPrefill {
           .whereType<Map<String, dynamic>>()
           .map(BankAccount.fromJson)
           .toList(),
+      pendingInvoices: (json['pending_invoices'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(OpenDocument.fromJson)
+          .toList(),
+      totalOutstanding: (json['total_outstanding'] as num?)?.toDouble() ?? 0,
+      selectedDocument: json['selected_document'] is Map<String, dynamic>
+          ? OpenDocument.fromJson(
+              json['selected_document'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
   final PaymentDefaults defaults;
   final List<OpenDocument> openDocuments;
   final List<BankAccount> bankAccounts;
+  final List<OpenDocument> pendingInvoices;
+  final double totalOutstanding;
+  final OpenDocument? selectedDocument;
+
+  /// Invoices to show on the allocation UI — pending first, else open docs.
+  List<OpenDocument> get allocatableDocuments =>
+      pendingInvoices.isNotEmpty ? pendingInvoices : openDocuments;
 }
 
 class PaymentDefaults {
@@ -120,6 +159,7 @@ class PaymentDefaults {
     required this.documentDate,
     required this.reference,
     required this.bankAccount,
+    this.amount,
   });
 
   factory PaymentDefaults.fromJson(Map<String, dynamic> json) {
@@ -130,6 +170,7 @@ class PaymentDefaults {
       documentDate: json['document_date'] as String,
       reference: json['reference'] as String,
       bankAccount: json['bank_account'] as int,
+      amount: (json['amount'] as num?)?.toDouble(),
     );
   }
 
@@ -139,6 +180,7 @@ class PaymentDefaults {
   final String documentDate;
   final String reference;
   final int bankAccount;
+  final double? amount;
 }
 
 class PaymentRepository {
@@ -146,12 +188,23 @@ class PaymentRepository {
 
   final ApiClient _api;
 
-  Future<PaymentPrefill> fetchPrefill({required int customerId}) async {
+  Future<PaymentPrefill> fetchPrefill({
+    required int customerId,
+    int? allocateTo,
+  }) async {
+    final query = <String, dynamic>{'customer_id': customerId};
+    if (allocateTo != null) query['allocate_to'] = allocateTo;
+
     final data = await _api.getJson(
       '/sales/payments/prefill',
-      queryParameters: {'customer_id': customerId},
+      queryParameters: query,
     );
     return PaymentPrefill.fromJson(data);
+  }
+
+  Future<PaymentDetail> fetchPayment(int id) async {
+    final data = await _api.getJson('/sales/payments/$id');
+    return PaymentDetail.fromJson(data);
   }
 }
 

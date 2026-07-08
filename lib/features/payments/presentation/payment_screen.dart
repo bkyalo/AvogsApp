@@ -9,11 +9,35 @@ import 'package:avogs/shared/widgets/transaction_form_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PaymentScreen extends ConsumerWidget {
-  const PaymentScreen({super.key});
+class PaymentScreen extends ConsumerStatefulWidget {
+  const PaymentScreen({
+    super.key,
+    this.initialCustomerId,
+    this.allocateTo,
+  });
+
+  final int? initialCustomerId;
+  final int? allocateTo;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends ConsumerState<PaymentScreen> {
+  var _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      _initialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(paymentControllerProvider.notifier).load(
+              customerId: widget.initialCustomerId ?? 1,
+              allocateTo: widget.allocateTo,
+            );
+      });
+    }
+
     final state = ref.watch(paymentControllerProvider);
     final controller = ref.read(paymentControllerProvider.notifier);
     final customers = ref.watch(customersProvider);
@@ -31,6 +55,7 @@ class PaymentScreen extends ConsumerWidget {
       );
     }
 
+    final documents = prefill.allocatableDocuments;
     final allocated = state.allocatedTotal;
     final overAllocated = allocated > state.amount + 0.005;
 
@@ -56,6 +81,16 @@ class PaymentScreen extends ConsumerWidget {
                 '${prefill.defaults.reference} · ${prefill.defaults.documentDate}',
                 style: theme.textTheme.bodySmall?.copyWith(color: muted),
               ),
+              if (prefill.totalOutstanding > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Outstanding: ${formatMoney(prefill.totalOutstanding)}',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.honey,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               MoneyField(
                 value: state.amount,
@@ -91,10 +126,20 @@ class PaymentScreen extends ConsumerWidget {
                   if (id != null) controller.setBankAccount(id);
                 },
               ),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Memo / reference',
+                  hintText: 'M-Pesa #QA123456',
+                  isDense: true,
+                ),
+                enabled: !state.submitting,
+                onChanged: controller.setMemo,
+              ),
               const SizedBox(height: 20),
-              Text('Open invoices', style: theme.textTheme.titleMedium),
+              Text('Pending invoices', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              if (prefill.openDocuments.isEmpty)
+              if (documents.isEmpty)
                 Card(
                   margin: EdgeInsets.zero,
                   child: Padding(
@@ -111,7 +156,7 @@ class PaymentScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'No open invoices',
+                          'No pending invoices',
                           style: theme.textTheme.titleSmall,
                         ),
                         const SizedBox(height: 2),
@@ -127,7 +172,7 @@ class PaymentScreen extends ConsumerWidget {
                   ),
                 )
               else
-                for (final doc in prefill.openDocuments) ...[
+                for (final doc in documents) ...[
                   _InvoiceCard(
                     doc: doc,
                     allocated: state.allocations[doc.transNo],
@@ -219,7 +264,9 @@ class _InvoiceCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          doc.documentDate,
+                          doc.dueDate != null
+                              ? '${doc.documentDate} · due ${doc.dueDate}'
+                              : doc.documentDate,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: muted,
                           ),

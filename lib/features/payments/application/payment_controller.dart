@@ -8,13 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PaymentFormState {
   const PaymentFormState({
-    this.loading = true,
+    this.loading = false,
     this.submitting = false,
     this.prefill,
     this.customerId = 1,
     this.amount = 0,
     this.selectedBankAccountId,
     this.allocations = const {},
+    this.memo = '',
     this.errorMessage,
   });
 
@@ -25,6 +26,7 @@ class PaymentFormState {
   final double amount;
   final int? selectedBankAccountId;
   final Map<int, double> allocations;
+  final String memo;
   final String? errorMessage;
 
   double get allocatedTotal =>
@@ -38,6 +40,7 @@ class PaymentFormState {
     double? amount,
     int? selectedBankAccountId,
     Map<int, double>? allocations,
+    String? memo,
     String? errorMessage,
     bool clearError = false,
   }) {
@@ -50,6 +53,7 @@ class PaymentFormState {
       selectedBankAccountId:
           selectedBankAccountId ?? this.selectedBankAccountId,
       allocations: allocations ?? this.allocations,
+      memo: memo ?? this.memo,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
@@ -61,22 +65,38 @@ final paymentControllerProvider =
 );
 
 class PaymentController extends StateNotifier<PaymentFormState> {
-  PaymentController(this._ref) : super(const PaymentFormState()) {
-    load(customerId: 1);
-  }
+  PaymentController(this._ref) : super(const PaymentFormState());
 
   final Ref _ref;
 
-  Future<void> load({required int customerId}) async {
+  Future<void> load({
+    required int customerId,
+    int? allocateTo,
+  }) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final prefill =
-          await _ref.read(paymentRepositoryProvider).fetchPrefill(customerId: customerId);
+      final prefill = await _ref
+          .read(paymentRepositoryProvider)
+          .fetchPrefill(customerId: customerId, allocateTo: allocateTo);
+
+      final allocations = <int, double>{};
+      var amount = prefill.defaults.amount ?? 0.0;
+
+      final selected = prefill.selectedDocument;
+      if (selected != null) {
+        allocations[selected.transNo] = selected.balance;
+        amount = selected.balance;
+      } else if (amount <= 0 && prefill.totalOutstanding > 0) {
+        amount = prefill.totalOutstanding;
+      }
+
       state = PaymentFormState(
         loading: false,
         prefill: prefill,
         customerId: customerId,
+        amount: amount,
         selectedBankAccountId: prefill.defaults.bankAccount,
+        allocations: allocations,
       );
     } on ApiException catch (e) {
       state = state.copyWith(loading: false, errorMessage: e.message);
@@ -89,6 +109,8 @@ class PaymentController extends StateNotifier<PaymentFormState> {
 
   void setBankAccount(int id) =>
       state = state.copyWith(selectedBankAccountId: id);
+
+  void setMemo(String memo) => state = state.copyWith(memo: memo);
 
   void toggleAllocation(OpenDocument doc, bool selected) {
     final updated = Map<int, double>.from(state.allocations);
@@ -104,7 +126,6 @@ class PaymentController extends StateNotifier<PaymentFormState> {
   void setAllocationAmount(int transNo, double amount) {
     final updated = Map<int, double>.from(state.allocations);
     updated[transNo] = amount;
-    // Keep the payment amount in sync with allocations, same as toggling.
     final total = updated.values.fold(0.0, (a, b) => a + b);
     state = state.copyWith(allocations: updated, amount: total);
   }
@@ -117,7 +138,8 @@ class PaymentController extends StateNotifier<PaymentFormState> {
       return null;
     }
     const epsilon = 0.005;
-    final overBalance = prefill.openDocuments.any(
+    final documents = prefill.allocatableDocuments;
+    final overBalance = documents.any(
       (d) => (state.allocations[d.transNo] ?? 0) > d.balance + epsilon,
     );
     if (overBalance) {
@@ -146,6 +168,7 @@ class PaymentController extends StateNotifier<PaymentFormState> {
           )
           .toList();
 
+      final memo = state.memo.trim();
       final payload = {
         'customer_id': prefill.defaults.customerId,
         'branch_id': prefill.defaults.branchId,
@@ -153,6 +176,7 @@ class PaymentController extends StateNotifier<PaymentFormState> {
         'document_date': prefill.defaults.documentDate,
         'reference': prefill.defaults.reference,
         'amount': state.amount,
+        if (memo.isNotEmpty) 'memo': memo,
         if (allocationEntries.isNotEmpty) 'allocations': allocationEntries,
       };
 
@@ -178,7 +202,6 @@ class PaymentController extends StateNotifier<PaymentFormState> {
         queuedOffline: result.queuedOffline,
       );
 
-      // Refresh history so the payment shows up immediately.
       _ref.invalidate(historyEntriesProvider);
 
       await load(customerId: prefill.defaults.customerId);

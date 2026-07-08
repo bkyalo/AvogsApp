@@ -46,6 +46,14 @@ class MasterDataRepository {
     }).toList();
   }
 
+  Future<List<PaymentTermsOption>> fetchPaymentTerms() async {
+    final data = await _api.getJsonList('/payment-terms');
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(PaymentTermsOption.fromJson)
+        .toList();
+  }
+
   Future<CatalogItem> fetchItemContext({
     required String stockId,
     int? customerId,
@@ -71,6 +79,10 @@ final customersProvider = FutureProvider<List<CustomerInfo>>((ref) async {
 
 final suppliersProvider = FutureProvider<List<SupplierInfo>>((ref) async {
   return ref.watch(masterDataRepositoryProvider).fetchSuppliers();
+});
+
+final paymentTermsProvider = FutureProvider<List<PaymentTermsOption>>((ref) async {
+  return ref.watch(masterDataRepositoryProvider).fetchPaymentTerms();
 });
 
 class MasterDataSyncNotifier extends Notifier<void> {

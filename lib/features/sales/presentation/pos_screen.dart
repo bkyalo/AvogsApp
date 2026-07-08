@@ -71,6 +71,80 @@ class PosScreen extends ConsumerWidget {
                 error: (e, _) => Text('$e'),
               ),
               const SizedBox(height: 10),
+              SegmentedButton<SaleTiming>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+                segments: const [
+                  ButtonSegment(
+                    value: SaleTiming.payNow,
+                    icon: Icon(Icons.payments_outlined, size: 16),
+                    label: Text('Pay now'),
+                  ),
+                  ButtonSegment(
+                    value: SaleTiming.payLater,
+                    icon: Icon(Icons.schedule_outlined, size: 16),
+                    label: Text('Pay later'),
+                  ),
+                ],
+                selected: {state.saleTiming},
+                onSelectionChanged: state.submitting
+                    ? null
+                    : (s) => controller.setSaleTiming(s.first),
+              ),
+              if (state.saleTiming == SaleTiming.payNow) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SegmentedButton<PaymentMethod>(
+                        showSelectedIcon: false,
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        segments: const [
+                          ButtonSegment(
+                            value: PaymentMethod.cash,
+                            icon: Icon(Icons.payments_outlined, size: 16),
+                            label: Text('Cash'),
+                          ),
+                          ButtonSegment(
+                            value: PaymentMethod.mpesa,
+                            icon: Icon(Icons.phone_iphone, size: 16),
+                            label: Text('M-Pesa'),
+                          ),
+                        ],
+                        selected: {state.paymentMethod},
+                        onSelectionChanged: state.submitting
+                            ? null
+                            : (s) => controller.setPaymentMethod(s.first),
+                      ),
+                    ),
+                  ],
+                ),
+                if (state.paymentMethod == PaymentMethod.mpesa) ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'M-Pesa reference',
+                      hintText: 'e.g. QA123456',
+                      isDense: true,
+                    ),
+                    enabled: !state.submitting,
+                    onChanged: controller.setPaymentMemo,
+                  ),
+                ],
+              ] else if (prefill.defaults.dueDate != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Due ${prefill.defaults.dueDate}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Expanded(
@@ -81,28 +155,6 @@ class PosScreen extends ConsumerWidget {
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  SegmentedButton<PaymentMethod>(
-                    showSelectedIcon: false,
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    segments: const [
-                      ButtonSegment(
-                        value: PaymentMethod.cash,
-                        icon: Icon(Icons.payments_outlined, size: 16),
-                        label: Text('Cash'),
-                      ),
-                      ButtonSegment(
-                        value: PaymentMethod.mpesa,
-                        icon: Icon(Icons.phone_iphone, size: 16),
-                        label: Text('M-Pesa'),
-                      ),
-                    ],
-                    selected: {state.paymentMethod},
-                    onSelectionChanged: (s) =>
-                        controller.setPaymentMethod(s.first),
                   ),
                 ],
               ),
@@ -142,7 +194,9 @@ class PosScreen extends ConsumerWidget {
           total: state.total,
           submitting: state.submitting,
           enabled: state.lines.isNotEmpty,
-          submitLabel: 'Complete sale',
+          submitLabel: state.saleTiming == SaleTiming.payLater
+              ? 'Post invoice'
+              : 'Complete sale',
           onSubmit: () => _submit(context, ref, controller, state.lines),
         ),
       ],
@@ -172,6 +226,10 @@ class PosScreen extends ConsumerWidget {
           lines: result.lines,
           total: result.total,
           paymentMethod: result.paymentMethod,
+          paymentStatus: result.paymentStatus,
+          balanceDue: result.balanceDue,
+          invoiceNo: result.invoiceNo,
+          customerId: result.customerId,
           queuedOffline: result.queuedOffline,
         ),
       ),

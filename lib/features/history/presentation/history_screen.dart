@@ -6,8 +6,11 @@ import 'package:avogs/core/utils/formatters.dart';
 import 'package:avogs/features/history/application/history_provider.dart';
 import 'package:avogs/features/reports/reports_repository.dart';
 import 'package:avogs/features/sales/presentation/sales_receipt_screen.dart';
+import 'package:avogs/features/transactions/transaction_repositories.dart';
+import 'package:avogs/shared/models/transaction_models.dart';
 import 'package:avogs/shared/services/receipt_pdf_service.dart';
 import 'package:avogs/shared/widgets/sync_status_banner.dart';
+import 'package:avogs/shared/widgets/transaction_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -109,6 +112,49 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<void> _openDetail(BuildContext context, HistoryEntry entry) async {
+    if (entry.type == SyncItemType.salesPayment) {
+      if (entry.source == HistoryEntrySource.api && entry.serverId != null) {
+        try {
+          final payment = await ref
+              .read(paymentRepositoryProvider)
+              .fetchPayment(entry.serverId!);
+          if (!context.mounted) return;
+          await showTransactionSuccess(
+            context,
+            TransactionSuccessDetails(
+              title: 'Payment',
+              reference: payment.reference,
+              subtitle: payment.documentDate,
+              total: payment.amount,
+              totalLabel: 'Amount',
+              detailLines: [
+                if (payment.memo != null && payment.memo!.isNotEmpty)
+                  payment.memo!,
+                ...payment.allocations.map((a) => 'Allocated to $a'),
+              ],
+            ),
+          );
+          return;
+        } catch (_) {}
+      }
+
+      if (entry.payloadJson != null) {
+        if (!context.mounted) return;
+        await showTransactionSuccess(
+          context,
+          TransactionSuccessDetails(
+            title: entry.status == 'synced' ? 'Payment' : 'Payment queued',
+            reference: entry.reference,
+            subtitle: formatDate(entry.timestamp),
+            total: entry.total,
+            totalLabel: 'Amount',
+            queuedOffline: entry.status != 'synced',
+          ),
+        );
+      }
+      return;
+    }
+
     if (entry.type != SyncItemType.salesInvoice) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${entry.typeLabel} detail coming soon')),
