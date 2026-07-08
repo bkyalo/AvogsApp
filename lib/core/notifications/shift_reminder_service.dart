@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -37,6 +37,7 @@ class ShiftReminderService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    if (kIsWeb) return;
 
     tz_data.initializeTimeZones();
     try {
@@ -63,7 +64,7 @@ class ShiftReminderService {
       },
     );
 
-    if (Platform.isAndroid) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       await _plugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
